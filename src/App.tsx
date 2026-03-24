@@ -1,0 +1,698 @@
+import { useState } from 'react';
+import { ShoppingCart, Heart, Search, Menu, X, Star, Truck, Flower2, Award, Clock, ChevronRight, Phone, Mail, Share2, Users, Plus, Minus, Trash2 } from 'lucide-react';
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  oldPrice?: number;
+  image: string;
+  rating: number;
+  category: string;
+  description: string;
+}
+
+interface CartItem extends Product {
+  quantity: number;
+}
+
+const products: Product[] = [
+  {
+    id: 1,
+    name: 'Розовая мечта',
+    price: 4990,
+    oldPrice: 5990,
+    image: 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 4.9,
+    category: 'Букеты',
+    description: 'Нежный букет из 15 розовых пионов и гипсофилы'
+  },
+  {
+    id: 2,
+    name: 'Красная страсть',
+    price: 5490,
+    image: 'https://images.unsplash.com/photo-1518882605630-8eb585ab6d17?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 5.0,
+    category: 'Букеты',
+    description: 'Роскошный букет из 25 красных роз'
+  },
+  {
+    id: 3,
+    name: 'Весеннее настроение',
+    price: 3890,
+    oldPrice: 4590,
+    image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 4.7,
+    category: 'Композиции',
+    description: 'Яркая композиция из тюльпанов и ирисов'
+  },
+  {
+    id: 4,
+    name: 'Нежность',
+    price: 4290,
+    image: 'https://images.unsplash.com/photo-1469259943454-aa100abba749?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 4.8,
+    category: 'Букеты',
+    description: 'Букет из белых лилий и эустом'
+  },
+  {
+    id: 5,
+    name: 'Корзина счастья',
+    price: 6790,
+    image: 'https://images.unsplash.com/photo-1455659817273-f96807779a8a?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 4.9,
+    category: 'Корзины',
+    description: 'Пышная корзина с гортензиями и розами'
+  },
+  {
+    id: 6,
+    name: 'Радость жизни',
+    price: 3290,
+    oldPrice: 3990,
+    image: 'https://images.unsplash.com/photo-1494972688394-4cc796f9e4c5?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 4.6,
+    category: 'Композиции',
+    description: 'Солнечный букет из гербер и хризантем'
+  },
+  {
+    id: 7,
+    name: 'Элегантность',
+    price: 5890,
+    image: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 4.8,
+    category: 'Букеты',
+    description: 'Элегантный букет из орхидей и зелени'
+  },
+  {
+    id: 8,
+    name: 'Королева сада',
+    price: 7290,
+    image: 'https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?auto=format&fit=crop&q=80&w=400&h=400',
+    rating: 5.0,
+    category: 'Корзины',
+    description: 'Великолепная корзина с пионами и ранункулюсами'
+  }
+];
+
+const categories = [
+  { name: 'Все', icon: '🌸' },
+  { name: 'Букеты', icon: '💐' },
+  { name: 'Композиции', icon: '🏺' },
+  { name: 'Корзины', icon: '🧺' },
+  { name: 'Моно', icon: '🌹' }
+];
+
+const reviews = [
+  {
+    id: 1,
+    name: 'Анна Петрова',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100',
+    rating: 5,
+    text: 'Очень довольна! Букет был просто великолепен, доставка вовремя. Обязательно закажу ещё!',
+    date: '12 мая 2024'
+  },
+  {
+    id: 2,
+    name: 'Михаил Сидоров',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100',
+    rating: 5,
+    text: 'Заказал цветы жене на годовщину. Она в восторге! Свежие цветы, красивая упаковка.',
+    date: '8 мая 2024'
+  },
+  {
+    id: 3,
+    name: 'Елена Козлова',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100',
+    rating: 4,
+    text: 'Отличный сервис! Консультант помогла подобрать идеальный букет для мамы.',
+    date: '5 мая 2024'
+  }
+];
+
+export default function App() {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [favorites, setFavorites] = useState<number[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('Все');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const addToCart = (product: Product) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        return prev.map(item =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  };
+
+  const removeFromCart = (productId: number) => {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  };
+
+  const updateQuantity = (productId: number, delta: number) => {
+    setCart(prev =>
+      prev.map(item => {
+        if (item.id === productId) {
+          const newQuantity = item.quantity + delta;
+          return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
+        }
+        return item;
+      }).filter(item => item.quantity > 0)
+    );
+  };
+
+  const toggleFavorite = (productId: number) => {
+    setFavorites(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const filteredProducts = products.filter(product => {
+    const matchesCategory = selectedCategory === 'Все' || product.category === selectedCategory;
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-rose-50 to-white">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <Flower2 className="w-8 h-8 text-rose-500" />
+              <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">
+                Цветочный Рай
+              </span>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-8">
+              <a href="#catalog" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Каталог</a>
+              <a href="#about" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">О нас</a>
+              <a href="#reviews" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Отзывы</a>
+              <a href="#contacts" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Контакты</a>
+            </nav>
+
+            {/* Actions */}
+            <div className="flex items-center gap-4">
+              <button className="p-2 hover:bg-rose-50 rounded-full transition-colors">
+                <Search className="w-5 h-5 text-gray-600" />
+              </button>
+              <button className="p-2 hover:bg-rose-50 rounded-full transition-colors relative">
+                <Heart className="w-5 h-5 text-gray-600" />
+                {favorites.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {favorites.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="p-2 hover:bg-rose-50 rounded-full transition-colors relative"
+              >
+                <ShoppingCart className="w-5 h-5 text-gray-600" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 hover:bg-rose-50 rounded-full transition-colors"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-white border-t">
+            <nav className="flex flex-col p-4 gap-4">
+              <a href="#catalog" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Каталог</a>
+              <a href="#about" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">О нас</a>
+              <a href="#reviews" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Отзывы</a>
+              <a href="#contacts" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Контакты</a>
+            </nav>
+          </div>
+        )}
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 bg-rose-100 text-rose-600 px-4 py-2 rounded-full text-sm font-medium">
+                <span className="text-xl">🌷</span>
+                Доставка за 1 час
+              </div>
+              <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                Подарите
+                <span className="bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">
+                  {' '}яркие эмоции{' '}
+                </span>
+                с цветами
+              </h1>
+              <p className="text-lg text-gray-600">
+                Самые свежие цветы для ваших любимых. Собираем уникальные букеты с любовью и заботой.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <a
+                  href="#catalog"
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg shadow-rose-200 hover:shadow-xl hover:shadow-rose-300 transition-all transform hover:-translate-y-1"
+                >
+                  Выбрать букет
+                  <ChevronRight className="w-5 h-5" />
+                </a>
+                <button className="inline-flex items-center justify-center gap-2 border-2 border-rose-300 text-rose-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-rose-50 transition-all">
+                  <Phone className="w-5 h-5" />
+                  Заказать звонок
+                </button>
+              </div>
+              <div className="flex items-center gap-8 pt-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-rose-500">10+</div>
+                  <div className="text-sm text-gray-500">лет на рынке</div>
+                </div>
+                <div className="w-px h-12 bg-gray-200"></div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-rose-500">5000+</div>
+                  <div className="text-sm text-gray-500">довольных клиентов</div>
+                </div>
+                <div className="w-px h-12 bg-gray-200"></div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-rose-500">4.9</div>
+                  <div className="text-sm text-gray-500">рейтинг</div>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute -top-10 -left-10 w-72 h-72 bg-rose-200 rounded-full blur-3xl opacity-50"></div>
+              <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-pink-200 rounded-full blur-3xl opacity-50"></div>
+              <img
+                src="https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&q=80&w=600&h=600"
+                alt="Красивый букет цветов"
+                className="relative rounded-3xl shadow-2xl w-full max-w-lg mx-auto transform hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center">
+                  <Truck className="w-6 h-6 text-rose-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Бесплатная доставка</div>
+                  <div className="text-sm text-gray-500">от 3000 ₽</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="about" className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Почему выбирают нас</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">Мы заботимся о каждом клиенте и гарантируем высокое качество</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Flower2 className="w-8 h-8 text-rose-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Свежие цветы</h3>
+              <p className="text-gray-600">Ежедневные поставки свежих цветов из лучших питомников</p>
+            </div>
+            <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Award className="w-8 h-8 text-pink-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Качество</h3>
+              <p className="text-gray-600">Каждый букет собирается профессиональными флористами</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Truck className="w-8 h-8 text-purple-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Быстрая доставка</h3>
+              <p className="text-gray-600">Доставим ваш заказ за 1 час по всему городу</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-50 to-green-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Clock className="w-8 h-8 text-blue-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Работаем 24/7</h3>
+              <p className="text-gray-600">Всегда готовы помочь с выбором букета в любое время</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Catalog Section */}
+      <section id="catalog" className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Хит продаж</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">Самые популярные букеты этого сезона</p>
+          </div>
+
+          {/* Search & Filter */}
+          <div className="mb-8 space-y-6">
+            {/* Search */}
+            <div className="max-w-md mx-auto">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Поиск букета..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-full focus:border-rose-400 focus:outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Categories */}
+            <div className="flex flex-wrap justify-center gap-3">
+              {categories.map((category) => (
+                <button
+                  key={category.name}
+                  onClick={() => setSelectedCategory(category.name)}
+                  className={`px-6 py-3 rounded-full font-medium transition-all ${
+                    selectedCategory === category.name
+                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-200'
+                      : 'bg-white text-gray-700 hover:bg-rose-50 border border-gray-200'
+                  }`}
+                >
+                  <span className="mr-2">{category.icon}</span>
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Products Grid */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-3xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 group"
+              >
+                <div className="relative overflow-hidden">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <button
+                    onClick={() => toggleFavorite(product.id)}
+                    className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                  >
+                    <Heart
+                      className={`w-5 h-5 ${
+                        favorites.includes(product.id)
+                          ? 'fill-rose-500 text-rose-500'
+                          : 'text-gray-400'
+                      }`}
+                    />
+                  </button>
+                  {product.oldPrice && (
+                    <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      -{Math.round((1 - product.price / product.oldPrice) * 100)}%
+                    </div>
+                  )}
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-1 mb-2">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm font-medium text-gray-600">{product.rating}</span>
+                    <span className="text-xs text-gray-400 ml-2">({product.category})</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{product.name}</h3>
+                  <p className="text-sm text-gray-500 mb-4">{product.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-2xl font-bold text-rose-500">{product.price} ₽</span>
+                      {product.oldPrice && (
+                        <span className="text-sm text-gray-400 line-through ml-2">{product.oldPrice} ₽</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => addToCart(product)}
+                      className="w-12 h-12 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full flex items-center justify-center hover:shadow-lg hover:shadow-rose-200 transition-all transform hover:scale-110"
+                    >
+                      <Plus className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section id="reviews" className="py-16 bg-gradient-to-br from-rose-50 to-pink-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Отзывы клиентов</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">Что говорят о нас наши покупатели</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow">
+                <div className="flex items-center gap-4 mb-6">
+                  <img
+                    src={review.avatar}
+                    alt={review.name}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-rose-200"
+                  />
+                  <div>
+                    <div className="font-bold text-gray-900">{review.name}</div>
+                    <div className="text-sm text-gray-500">{review.date}</div>
+                  </div>
+                </div>
+                <div className="flex gap-1 mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-5 h-5 ${
+                        i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-gray-600 leading-relaxed">{review.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-r from-rose-500 to-pink-500 rounded-3xl p-12 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full opacity-10">
+              <div className="absolute top-10 left-10 text-9xl">🌸</div>
+              <div className="absolute bottom-10 right-10 text-9xl">🌷</div>
+              <div className="absolute top-1/2 left-1/4 text-7xl">🌺</div>
+            </div>
+            <div className="relative z-10">
+              <h2 className="text-3xl lg:text-5xl font-bold text-white mb-6">
+                Готовы порадовать близких?
+              </h2>
+              <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
+                Закажите букет прямо сейчас и получите скидку 15% на первый заказ!
+              </p>
+              <a
+                href="#catalog"
+                className="inline-flex items-center gap-2 bg-white text-rose-500 px-10 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1"
+              >
+                Заказать букет
+                <ChevronRight className="w-6 h-6" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer id="contacts" className="bg-gray-900 text-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <Flower2 className="w-8 h-8 text-rose-400" />
+                <span className="text-2xl font-bold">Цветочный Рай</span>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Ваш надежный партнер в мире цветов. Доставляем радость каждый день!
+              </p>
+              <div className="flex gap-4">
+                <a href="#" className="w-10 h-10 bg-gray-800 hover:bg-rose-500 rounded-full flex items-center justify-center transition-colors">
+                  <Share2 className="w-5 h-5" />
+                </a>
+                <a href="#" className="w-10 h-10 bg-gray-800 hover:bg-rose-500 rounded-full flex items-center justify-center transition-colors">
+                  <Users className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-6">Навигация</h3>
+              <ul className="space-y-3">
+                <li><a href="#catalog" className="text-gray-400 hover:text-rose-400 transition-colors">Каталог</a></li>
+                <li><a href="#about" className="text-gray-400 hover:text-rose-400 transition-colors">О нас</a></li>
+                <li><a href="#reviews" className="text-gray-400 hover:text-rose-400 transition-colors">Отзывы</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Доставка и оплата</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-6">Каталог</h3>
+              <ul className="space-y-3">
+                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Розы</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Пионы</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Хризантемы</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Композиции</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-6">Контакты</h3>
+              <ul className="space-y-4">
+                <li className="flex items-center gap-3 text-gray-400">
+                  <Phone className="w-5 h-5 text-rose-400" />
+                  +7 (999) 123-45-67
+                </li>
+                <li className="flex items-center gap-3 text-gray-400">
+                  <Mail className="w-5 h-5 text-rose-400" />
+                  info@flowers.ru
+                </li>
+                <li className="text-gray-400">
+                  📍 Москва, ул. Цветочная, д. 1
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">
+            <p>© 2024 Цветочный Рай. Все права защищены.</p>
+          </div>
+        </div>
+      </footer>
+
+      {/* Cart Sidebar */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsCartOpen(false)}
+          ></div>
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <ShoppingCart className="w-6 h-6 text-rose-500" />
+                  Корзина
+                </h3>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-10 h-10 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Cart Items */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {cart.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <ShoppingCart className="w-12 h-12 text-rose-300" />
+                    </div>
+                    <h4 className="text-xl font-semibold text-gray-900 mb-2">Корзина пуста</h4>
+                    <p className="text-gray-500 mb-6">Добавьте красивые цветы в корзину</p>
+                    <button
+                      onClick={() => setIsCartOpen(false)}
+                      className="text-rose-500 font-medium hover:text-rose-600"
+                    >
+                      Перейти в каталог →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex gap-4 bg-gray-50 rounded-2xl p-4">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-20 h-20 object-cover rounded-xl"
+                        />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                          <p className="text-rose-500 font-bold">{item.price} ₽</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button
+                              onClick={() => updateQuantity(item.id, -1)}
+                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-semibold">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, 1)}
+                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="w-10 h-10 hover:bg-red-50 rounded-full flex items-center justify-center self-start transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5 text-red-400" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              {cart.length > 0 && (
+                <div className="p-6 border-t bg-gray-50">
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-gray-600">Итого:</span>
+                    <span className="text-2xl font-bold text-rose-500">{cartTotal} ₽</span>
+                  </div>
+                  <button className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all">
+                    Оформить заказ
+                  </button>
+                  <p className="text-center text-gray-500 text-sm mt-4">
+                    <Truck className="w-4 h-4 inline mr-1" />
+                    Бесплатная доставка от 3000 ₽
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
