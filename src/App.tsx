@@ -1,106 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, Heart, Search, Menu, X, Star, Truck, Flower2, Award, Clock, ChevronRight, Phone, Mail, Share2, Users, Plus, Minus, Trash2 } from 'lucide-react';
+import { fetchMoyskladProducts } from '@/moysklad/fetchProducts';
+import type { CatalogProduct } from '@/moysklad/mapProduct';
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  oldPrice?: number;
-  image: string;
-  rating: number;
-  category: string;
-  description: string;
-}
+type Product = CatalogProduct;
 
 interface CartItem extends Product {
   quantity: number;
 }
-
-const products: Product[] = [
-  {
-    id: 1,
-    name: 'Розовая мечта',
-    price: 4990,
-    oldPrice: 5990,
-    image: 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 4.9,
-    category: 'Букеты',
-    description: 'Нежный букет из 15 розовых пионов и гипсофилы'
-  },
-  {
-    id: 2,
-    name: 'Красная страсть',
-    price: 5490,
-    image: 'https://images.unsplash.com/photo-1518882605630-8eb585ab6d17?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 5.0,
-    category: 'Букеты',
-    description: 'Роскошный букет из 25 красных роз'
-  },
-  {
-    id: 3,
-    name: 'Весеннее настроение',
-    price: 3890,
-    oldPrice: 4590,
-    image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 4.7,
-    category: 'Композиции',
-    description: 'Яркая композиция из тюльпанов и ирисов'
-  },
-  {
-    id: 4,
-    name: 'Нежность',
-    price: 4290,
-    image: 'https://images.unsplash.com/photo-1469259943454-aa100abba749?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 4.8,
-    category: 'Букеты',
-    description: 'Букет из белых лилий и эустом'
-  },
-  {
-    id: 5,
-    name: 'Корзина счастья',
-    price: 6790,
-    image: 'https://images.unsplash.com/photo-1455659817273-f96807779a8a?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 4.9,
-    category: 'Корзины',
-    description: 'Пышная корзина с гортензиями и розами'
-  },
-  {
-    id: 6,
-    name: 'Радость жизни',
-    price: 3290,
-    oldPrice: 3990,
-    image: 'https://images.unsplash.com/photo-1494972688394-4cc796f9e4c5?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 4.6,
-    category: 'Композиции',
-    description: 'Солнечный букет из гербер и хризантем'
-  },
-  {
-    id: 7,
-    name: 'Элегантность',
-    price: 5890,
-    image: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 4.8,
-    category: 'Букеты',
-    description: 'Элегантный букет из орхидей и зелени'
-  },
-  {
-    id: 8,
-    name: 'Королева сада',
-    price: 7290,
-    image: 'https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?auto=format&fit=crop&q=80&w=400&h=400',
-    rating: 5.0,
-    category: 'Корзины',
-    description: 'Великолепная корзина с пионами и ранункулюсами'
-  }
-];
-
-const categories = [
-  { name: 'Все', icon: '🌸' },
-  { name: 'Букеты', icon: '💐' },
-  { name: 'Композиции', icon: '🏺' },
-  { name: 'Корзины', icon: '🧺' },
-  { name: 'Моно', icon: '🌹' }
-];
 
 const reviews = [
   {
@@ -130,12 +37,46 @@ const reviews = [
 ];
 
 export default function App() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Все');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProductsLoading(true);
+      setProductsError(null);
+      try {
+        const list = await fetchMoyskladProducts();
+        if (!cancelled) setProducts(list);
+      } catch (e) {
+        if (!cancelled) {
+          setProductsError(e instanceof Error ? e.message : String(e));
+          setProducts([]);
+        }
+      } finally {
+        if (!cancelled) setProductsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const names = [...new Set(products.map((p) => p.category))].filter(Boolean).sort();
+    return [
+      { name: 'Все', icon: '🌸' },
+      ...names.map((n) => ({ name: n, icon: '🌿' })),
+    ];
+  }, [products]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -149,11 +90,11 @@ export default function App() {
     });
   };
 
-  const removeFromCart = (productId: number) => {
+  const removeFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.id !== productId));
   };
 
-  const updateQuantity = (productId: number, delta: number) => {
+  const updateQuantity = (productId: string, delta: number) => {
     setCart(prev =>
       prev.map(item => {
         if (item.id === productId) {
@@ -165,7 +106,7 @@ export default function App() {
     );
   };
 
-  const toggleFavorite = (productId: number) => {
+  const toggleFavorite = (productId: string) => {
     setFavorites(prev =>
       prev.includes(productId)
         ? prev.filter(id => id !== productId)
@@ -175,8 +116,14 @@ export default function App() {
 
   const filteredProducts = products.filter(product => {
     const matchesCategory = selectedCategory === 'Все' || product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      product.name.toLowerCase().includes(q) ||
+      product.description.toLowerCase().includes(q) ||
+      (product.code?.toLowerCase().includes(q) ?? false) ||
+      (product.article?.toLowerCase().includes(q) ?? false) ||
+      (product.barcodes?.toLowerCase().includes(q) ?? false);
     return matchesCategory && matchesSearch;
   });
 
@@ -407,6 +354,17 @@ export default function App() {
           </div>
 
           {/* Products Grid */}
+          {productsLoading && (
+            <p className="text-center text-gray-600 py-12">Загрузка каталога из МойСклад…</p>
+          )}
+          {productsError && (
+            <div className="max-w-2xl mx-auto rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {productsError}
+            </div>
+          )}
+          {!productsLoading && !productsError && filteredProducts.length === 0 && (
+            <p className="text-center text-gray-500 py-12">Нет товаров по выбранным условиям.</p>
+          )}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {filteredProducts.map((product) => (
               <div
@@ -431,30 +389,69 @@ export default function App() {
                       }`}
                     />
                   </button>
-                  {product.oldPrice && (
+                  {product.oldPrice && product.oldPrice > product.price && (
                     <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                       -{Math.round((1 - product.price / product.oldPrice) * 100)}%
                     </div>
                   )}
                 </div>
                 <div className="p-6">
-                  <div className="flex items-center gap-1 mb-2">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-medium text-gray-600">{product.rating}</span>
-                    <span className="text-xs text-gray-400 ml-2">({product.category})</span>
+                  <div className="flex items-center gap-1 mb-2 flex-wrap">
+                    {product.rating > 0 ? (
+                      <>
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm font-medium text-gray-600">{product.rating}</span>
+                      </>
+                    ) : null}
+                    <span className="text-xs text-gray-400 ml-1">({product.category})</span>
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">{product.name}</h3>
-                  <p className="text-sm text-gray-500 mb-4">{product.description}</p>
-                  <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500 space-y-0.5 mb-2">
+                    {product.code != null && product.code !== '' && (
+                      <div>Код: <span className="font-mono">{product.code}</span></div>
+                    )}
+                    {product.article != null && product.article !== '' && (
+                      <div>Артикул: <span className="font-mono">{product.article}</span></div>
+                    )}
+                    {product.externalCode != null && product.externalCode !== '' && (
+                      <div>Внешний код: <span className="font-mono break-all">{product.externalCode}</span></div>
+                    )}
+                    {product.barcodes != null && product.barcodes !== '' && (
+                      <div>Штрихкод: <span className="font-mono">{product.barcodes}</span></div>
+                    )}
+                    {product.weightKg != null && product.weightKg > 0 && (
+                      <div>Вес: {product.weightKg < 1 ? `${Math.round(product.weightKg * 1000)} г` : `${product.weightKg.toFixed(2)} кг`}</div>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mb-3 line-clamp-3">{product.description}</p>
+                  {product.salePricesLabels.length > 0 && (
+                    <ul className="text-xs text-gray-600 mb-3 space-y-0.5">
+                      {product.salePricesLabels.map((sp, i) => (
+                        <li key={i} className="flex justify-between gap-2">
+                          <span>{sp.label}</span>
+                          <span className="font-medium">{sp.rub.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₽</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex items-center justify-between gap-2">
                     <div>
-                      <span className="text-2xl font-bold text-rose-500">{product.price} ₽</span>
-                      {product.oldPrice && (
-                        <span className="text-sm text-gray-400 line-through ml-2">{product.oldPrice} ₽</span>
+                      <span className="text-2xl font-bold text-rose-500">
+                        {product.price > 0
+                          ? `${product.price.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₽`
+                          : '—'}
+                      </span>
+                      {product.oldPrice != null && product.oldPrice > product.price && (
+                        <span className="text-sm text-gray-400 line-through ml-2">
+                          {product.oldPrice.toLocaleString('ru-RU')} ₽
+                        </span>
                       )}
                     </div>
                     <button
+                      type="button"
+                      disabled={product.price <= 0}
                       onClick={() => addToCart(product)}
-                      className="w-12 h-12 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full flex items-center justify-center hover:shadow-lg hover:shadow-rose-200 transition-all transform hover:scale-110"
+                      className="w-12 h-12 shrink-0 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full flex items-center justify-center hover:shadow-lg hover:shadow-rose-200 transition-all transform hover:scale-110 disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <Plus className="w-6 h-6" />
                     </button>
