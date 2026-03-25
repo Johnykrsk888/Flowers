@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: pages
@@ -28,3 +29,40 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+      - name: Enable GitHub Pages (bind branch to site)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          API="https://api.github.com/repos/${{ github.repository }}/pages"
+          CODE=$(curl -sS -o /tmp/pages-body.json -w "%{http_code}" \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$API" \
+            -d '{"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}}')
+          echo "Pages API HTTP status: $CODE"
+          cat /tmp/pages-body.json || true
+          echo
+          case "$CODE" in
+            201|204)
+              echo "GitHub Pages привязан к ветке gh-pages."
+              ;;
+            409)
+              echo "Сайт Pages уже настроен — ок."
+              ;;
+            422)
+              MSG=$(jq -r '.message // empty' /tmp/pages-body.json 2>/dev/null || true)
+              if echo "$MSG" | grep -qi 'already\|exist'; then
+                echo "Pages уже существует — ок."
+              else
+                echo "::error::Не удалось включить Pages: $MSG"
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unexpected HTTP $CODE от GitHub Pages API."
+              exit 1
+              ;;
+          esac
