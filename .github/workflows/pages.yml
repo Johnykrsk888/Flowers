@@ -1,3 +1,6 @@
+# Публикация на GitHub Pages через Actions (официальный способ).
+# Один раз в репозитории: Settings → Pages → Build: «GitHub Actions», не «Deploy from a branch».
+
 name: Deploy to GitHub Pages
 
 on:
@@ -6,14 +9,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +28,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Publish to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-      - name: Подсказка если сайт не открывается
-        run: |
-          echo "::notice::Сборка залита в ветку gh-pages. Если https://johnykrsk888.github.io/Flowers/ даёт 404 — один раз включи GitHub Pages: Repo → Settings → Pages → Build: Deploy from a branch → Branch gh-pages, folder / (root) → Save."
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
