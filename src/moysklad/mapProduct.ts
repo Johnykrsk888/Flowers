@@ -1,7 +1,11 @@
 import { normalizePathFromApi, resolvePathFromFolderLike } from "./categoryPath";
 import { folderIdFromHref } from "./folderId";
 import type { MsProduct } from "./types";
-import { mediaUrlForApp, normalizeMoyskladImageDownloadUrl } from "./mediaUrl";
+import {
+  isDirectStorageImageUrl,
+  mediaUrlForApp,
+  normalizeMoyskladImageDownloadUrl,
+} from "./mediaUrl";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "./placeholderImage";
 
 /** Цены в МойСклад — в копейках (документация API Remap 1.2) */
@@ -11,8 +15,8 @@ export function kopecksToRubles(value: number): number {
 
 function scoreImageUrlCandidate(url: string): number {
   const u = url.toLowerCase();
+  if (u.includes("storage.files.") || u.includes("storage.moysklad.ru")) return -1;
   if (u.includes("/download")) return 0;
-  if (u.includes("storage.moysklad.ru")) return 1;
   if (u.includes("api.moysklad.ru") && u.includes("/images/")) return 2;
   if (u.includes("api.moysklad.ru")) return 3;
   return 4;
@@ -27,7 +31,11 @@ function collectImageUrlsDeep(row: MsImageRow): string[] {
       const t = v.trim();
       if (
         /^https?:\/\//i.test(t) &&
-        (/\bmoysklad\b/i.test(t) || /\/images\//i.test(t) || /\/download/i.test(t)) &&
+        (/\bmoysklad\b/i.test(t) ||
+          /\/images\//i.test(t) ||
+          /\/download/i.test(t) ||
+          /storage\.(moysklad|files)/i.test(t) ||
+          /temp_url_sig=/i.test(t)) &&
         !seen.has(t)
       ) {
         seen.add(t);
@@ -40,6 +48,14 @@ function collectImageUrlsDeep(row: MsImageRow): string[] {
   };
   walk(row);
   return out.sort((a, b) => scoreImageUrlCandidate(a) - scoreImageUrlCandidate(b));
+}
+
+function imageUrlForDisplay(raw: string): string {
+  const normalized = normalizeMoyskladImageDownloadUrl(raw);
+  if (isDirectStorageImageUrl(normalized)) {
+    return normalized;
+  }
+  return mediaUrlForApp(normalized);
 }
 
 function pickImageUrl(p: MsProduct): string {
@@ -60,13 +76,11 @@ function pickImageUrl(p: MsProduct): string {
     ];
     for (const raw of candidates) {
       if (!raw) continue;
-      const normalized = normalizeMoyskladImageDownloadUrl(raw);
-      /** Не добавлять query к URL: у storage.moysklad.ru подпись (temp_url_sig) ломается. */
-      return mediaUrlForApp(normalized);
+      /** Не добавлять query к URL: у storage подпись (temp_url_sig) ломается. */
+      return imageUrlForDisplay(raw);
     }
     for (const raw of collectImageUrlsDeep(first)) {
-      const normalized = normalizeMoyskladImageDownloadUrl(raw);
-      return mediaUrlForApp(normalized);
+      return imageUrlForDisplay(raw);
     }
   }
   return PRODUCT_IMAGE_PLACEHOLDER;

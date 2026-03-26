@@ -1,4 +1,5 @@
 /** База JSON API — ссылки на api.moysklad.ru требуют авторизации; в dev проксируем через Vite. */
+/** Прямые подписанные URL на файловое хранилище в <img> не требуют прокси (обходит nginx 415/лимиты). */
 
 const MS_API_PREFIX = "https://api.moysklad.ru/api/remap/1.2";
 const MS_REL_PREFIX = "/api/remap/1.2";
@@ -23,6 +24,25 @@ function extractUuidFromMoyskladStorageUrl(url: string): string | null {
     return matches[matches.length - 1][1] ?? null;
   } catch {
     return null;
+  }
+}
+
+/** HTTPS-ссылка на объект в хранилище (S3-подобное) — браузер грузит без Basic auth и без нашего nginx. */
+export function isDirectStorageImageUrl(url: string): boolean {
+  try {
+    const u = new URL(url.trim());
+    const proto = u.protocol.toLowerCase();
+    if (proto !== "https:" && proto !== "http:") return false;
+    const h = u.hostname.toLowerCase();
+    if (h === "storage.moysklad.ru") return true;
+    if (h.includes("storage.files.") || /\.cloud\.servers\.ru$/i.test(h)) {
+      if (u.searchParams.has("temp_url_sig")) return true;
+      if (/\/(goodimage|image-prod|\/image\/)/i.test(u.pathname)) return true;
+    }
+    if (h.includes("storage.") && /\/(goodimage|image-prod)/i.test(u.pathname)) return true;
+    return false;
+  } catch {
+    return false;
   }
 }
 
@@ -79,6 +99,10 @@ function extractRemapRest(url: string): string | null {
  */
 export function mediaUrlForApp(url: string): string {
   const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if (isDirectStorageImageUrl(trimmed)) {
+    return trimmed;
+  }
   const rest = extractRemapRest(trimmed);
   if (rest != null) {
     return proxyRemapRest(rest, trimmed);
