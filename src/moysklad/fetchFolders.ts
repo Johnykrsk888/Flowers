@@ -1,5 +1,6 @@
 import { moyskladApiPrefix } from "./apiPrefix";
 import { normalizePathFromApi, resolvePathFromFolderLike } from "./categoryPath";
+import { msFetchJson } from "./msFetch";
 import type { MsProductFolderListResponse } from "./types";
 
 const PAGE_SIZE = 100;
@@ -42,13 +43,7 @@ export async function fetchMoyskladFolderMetadata(): Promise<MsFolderMetadata> {
     });
 
     const url = `${prefix}/entity/productfolder?${qs.toString()}`;
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json;charset=utf-8",
-        "Cache-Control": "no-cache",
-      },
-    });
+    const res = await msFetchJson(url);
 
     if (!res.ok) {
       const t = await res.text();

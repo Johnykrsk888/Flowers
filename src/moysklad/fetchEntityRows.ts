@@ -1,12 +1,8 @@
 import { moyskladApiPrefix } from "./apiPrefix";
+import { msFetchJson } from "./msFetch";
 import type { MsImagesBlock, MsProduct, MsProductListResponse } from "./types";
 
 const PAGE_SIZE = 100;
-
-const fetchJsonHeaders = {
-  Accept: "application/json;charset=utf-8",
-  "Cache-Control": "no-cache",
-} as const;
 
 async function fetchEntityWithImagesExpanded(
   entity: "product" | "bundle",
@@ -16,7 +12,7 @@ async function fetchEntityWithImagesExpanded(
   if (!prefix) return null;
   const qs = new URLSearchParams({ expand: "productFolder,images" });
   const url = `${prefix}/entity/${entity}/${id}?${qs.toString()}`;
-  const res = await fetch(url, { cache: "no-store", headers: fetchJsonHeaders });
+  const res = await msFetchJson(url);
   if (!res.ok) return null;
   return (await res.json()) as MsProduct;
 }
@@ -28,7 +24,7 @@ async function fetchImagesSubresource(
   const prefix = moyskladApiPrefix();
   if (!prefix) return null;
   const url = `${prefix}/entity/${entity}/${id}/images`;
-  const res = await fetch(url, { cache: "no-store", headers: fetchJsonHeaders });
+  const res = await msFetchJson(url);
   if (!res.ok) return null;
   return (await res.json()) as MsImagesBlock;
 }
@@ -97,10 +93,7 @@ export async function fetchAllMsEntityRows(
     });
 
     const url = `${prefix}/entity/${entity}?${qs.toString()}`;
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: fetchJsonHeaders,
-    });
+    const res = await msFetchJson(url);
 
     if (!res.ok) {
       const t = await res.text();

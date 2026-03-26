@@ -1,4 +1,4 @@
-/** Заглушки и герой — data URI (без отдельных HTTP-запросов к /public). */
+/** Заглушки для карточек — data URI. Герой: файл в /public (см. hero-bouquet.png). */
 
 export const PRODUCT_IMAGE_PLACEHOLDER_DATA =
   "data:image/svg+xml;charset=utf-8," +
@@ -15,36 +15,10 @@ export const PRODUCT_IMAGE_PLACEHOLDER_DATA =
 
 export const PRODUCT_IMAGE_PLACEHOLDER = PRODUCT_IMAGE_PLACEHOLDER_DATA;
 
-const HERO_SVG_MARKUP = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
-  <defs>
-    <linearGradient id="hb" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#fff1f2"/>
-      <stop offset="50%" style="stop-color:#fce7f3"/>
-      <stop offset="100%" style="stop-color:#fbcfe8"/>
-    </linearGradient>
-    <linearGradient id="hp" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#f43f5e"/>
-      <stop offset="100%" style="stop-color:#ec4899"/>
-    </linearGradient>
-  </defs>
-  <rect width="600" height="600" rx="48" fill="url(#hb)"/>
-  <g transform="translate(300 320)">
-    <ellipse cx="0" cy="40" rx="120" ry="35" fill="#fda4af" opacity="0.35"/>
-    <path d="M0 -80 C-45 -120 -90 -60 -70 0 C-50 50 0 70 0 70 C0 70 50 50 70 0 C90 -60 45 -120 0 -80" fill="url(#hp)" opacity="0.95"/>
-    <path d="M-60 -20 C-100 -80 -140 -20 -100 40 C-70 80 -20 60 -20 60" fill="#fb7185" opacity="0.9"/>
-    <path d="M60 -20 C100 -80 140 -20 100 40 C70 80 20 60 20 60" fill="#f472b6" opacity="0.9"/>
-    <path d="M0 -40 L-8 90 L8 90 Z" fill="#15803d"/>
-    <circle cx="-35" cy="-50" r="28" fill="#fecdd3"/>
-    <circle cx="40" cy="-45" r="24" fill="#fda4af"/>
-    <circle cx="0" cy="-95" r="22" fill="#fb7185"/>
-  </g>
-  <text x="300" y="540" text-anchor="middle" fill="#9f1239" font-family="system-ui,sans-serif" font-size="14" opacity="0.7">Доставка цветов</text>
-</svg>`;
+/** Герой-секция: фото в public (не inline SVG). */
+export const HERO_IMAGE_URL = '/hero-bouquet.png';
 
-export const HERO_IMAGE_URL =
-  "data:image/svg+xml;charset=utf-8," + encodeURIComponent(HERO_SVG_MARKUP.trim());
-
-/** Запасной градиент, если браузер откажется от основного data URI (редко). */
+/** Запасной градиент, если файл не загрузился. */
 export const HERO_FALLBACK_DATA =
   "data:image/svg+xml;charset=utf-8," +
   encodeURIComponent(

@@ -38,8 +38,10 @@ export default defineConfig(({ mode }) => {
                 proxy.on("proxyReq", (proxyReq) => {
                   proxyReq.setHeader("Authorization", `Basic ${basic}`);
                   const p = proxyReq.path || "";
-                  // Картинки /download — не запрашивать как JSON
-                  if (p.includes("/download/")) {
+                  // Бинарные ответы: .../download, .../download/uuid (не только "/download/" — иначе
+                  // .../images/{id}/download без хвостового / даёт Accept: json → 1062 от API).
+                  const isDownload = /\/download(?:\?|$|\/)/i.test(p);
+                  if (isDownload) {
                     proxyReq.setHeader("Accept", "*/*");
                   } else {
                     proxyReq.setHeader("Accept", "application/json;charset=utf-8");
