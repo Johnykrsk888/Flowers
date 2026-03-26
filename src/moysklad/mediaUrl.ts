@@ -26,12 +26,18 @@ function extractUuidFromMoyskladStorageUrl(url: string): string | null {
   }
 }
 
+/** Прод: /download/{uuid} → /ms-image/download/{uuid} — сегмент перед /download/, иначе nginx матчит только JSON-location (415). */
+const PROD_DOWNLOAD_ALIAS = "/ms-image";
+
 function proxyRemapRest(rest: string, fallbackUrl: string): string {
   if (import.meta.env.DEV) {
     return `/api/moysklad${rest}`;
   }
   const prefix = import.meta.env.VITE_MOYSKLAD_API_PREFIX?.replace(/\/$/, "");
   if (prefix) {
+    if (rest.startsWith("/download/")) {
+      return `${prefix}${PROD_DOWNLOAD_ALIAS}${rest}`;
+    }
     return `${prefix}${rest}`;
   }
   return fallbackUrl;
