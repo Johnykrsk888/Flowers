@@ -7,6 +7,27 @@ const PAGE_SIZE = 100;
 /** Не 1 (слишком долго) и не N (429): параллельно, но с ограничением. */
 const ENRICH_CONCURRENCY = 8;
 
+/**
+ * Догрузка картинок по одному товару — сотни товаров × ретраи 429 = минуты и «вечная загрузка».
+ * Обогащаем только первые N карточек, у остальных — что пришло в списке (часто уже с URL).
+ */
+const MAX_PRODUCTS_TO_IMAGE_ENRICH = 80;
+
+function productNeedsImageEnrich(p: MsProduct): boolean {
+  const rows = p.images?.rows;
+  if (rows?.length) {
+    const first = rows[0];
+    if (JSON.stringify(first).includes("http")) return false;
+    return true;
+  }
+  const size = p.images?.meta?.size ?? 0;
+  const collectionHref = p.images?.meta?.href;
+  const looksLikeImagesCollection =
+    typeof collectionHref === "string" && /\/images/i.test(collectionHref);
+  if (size === 0 && !looksLikeImagesCollection) return false;
+  return true;
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -130,7 +151,14 @@ export async function fetchAllMsEntityRows(
     offset += PAGE_SIZE;
   }
 
+  const needEnrich = all.filter(productNeedsImageEnrich);
+  const enrichIds = new Set(
+    needEnrich.slice(0, MAX_PRODUCTS_TO_IMAGE_ENRICH).map((p) => p.id)
+  );
+
   return mapWithConcurrency(all, ENRICH_CONCURRENCY, (p) =>
-    enrichMsProductImagesIfNeeded(entity, p)
+    enrichIds.has(p.id)
+      ? enrichMsProductImagesIfNeeded(entity, p)
+      : Promise.resolve(p)
   );
 }

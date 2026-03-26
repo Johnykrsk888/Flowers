@@ -1,7 +1,8 @@
 /**
  * GET к JSON API МойСклад через прокси: заголовки + повтор при 429 (nginx / МойСклад).
  */
-const MAX_429_RETRIES = 12;
+/** Долгие ретраи блокируют UI минутами. */
+const MAX_429_RETRIES = 5;
 
 export async function msFetchJson(url: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
@@ -22,8 +23,8 @@ export async function msFetchJson(url: string, init?: RequestInit): Promise<Resp
     const ra = last.headers.get("Retry-After");
     const sec = ra ? parseInt(ra, 10) : NaN;
     const backoffMs = Number.isFinite(sec) && sec >= 0
-      ? Math.max(sec * 1000, 400)
-      : Math.min(90_000, 600 * 2 ** attempt);
+      ? Math.min(8_000, Math.max(sec * 1000, 400))
+      : Math.min(8_000, 500 * 2 ** attempt);
     await new Promise((r) => setTimeout(r, backoffMs));
   }
   return last!;
