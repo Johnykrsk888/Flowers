@@ -1,11 +1,7 @@
 import { normalizePathFromApi, resolvePathFromFolderLike } from "./categoryPath";
 import { folderIdFromHref } from "./folderId";
 import type { MsProduct } from "./types";
-import {
-  isDirectStorageImageUrl,
-  mediaUrlForApp,
-  normalizeMoyskladImageDownloadUrl,
-} from "./mediaUrl";
+import { mediaUrlForApp, normalizeMoyskladImageDownloadUrl } from "./mediaUrl";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "./placeholderImage";
 
 /** Цены в МойСклад — в копейках (документация API Remap 1.2) */
@@ -50,12 +46,9 @@ function collectImageUrlsDeep(row: MsImageRow): string[] {
   return out.sort((a, b) => scoreImageUrlCandidate(a) - scoreImageUrlCandidate(b));
 }
 
+/** Всегда через прокси /api/moysklad — подписанные URL из JSON быстро дают 401 в <img>; редирект с прокси выдаёт свежую ссылку. */
 function imageUrlForDisplay(raw: string): string {
-  const normalized = normalizeMoyskladImageDownloadUrl(raw);
-  if (isDirectStorageImageUrl(normalized)) {
-    return normalized;
-  }
-  return mediaUrlForApp(normalized);
+  return mediaUrlForApp(normalizeMoyskladImageDownloadUrl(raw));
 }
 
 function pickImageUrl(p: MsProduct): string {

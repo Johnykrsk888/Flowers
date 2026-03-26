@@ -450,7 +450,6 @@ export default function App() {
                   <img
                     src={product.image || PRODUCT_IMAGE_PLACEHOLDER}
                     alt={product.name}
-                    referrerPolicy="no-referrer"
                     onError={onProductImageError}
                     decoding="async"
                     className="w-full h-64 min-h-[16rem] object-cover object-center bg-rose-50 group-hover:scale-[1.02] transition-transform duration-500"
@@ -711,7 +710,6 @@ export default function App() {
                         <img
                           src={item.image || PRODUCT_IMAGE_PLACEHOLDER}
                           alt={item.name}
-                          referrerPolicy="no-referrer"
                           onError={onProductImageError}
                           className="w-20 h-20 min-h-[5rem] object-cover rounded-xl bg-rose-50"
                         />
