@@ -4,6 +4,28 @@ import type { MsImagesBlock, MsProduct, MsProductListResponse } from "./types";
 
 const PAGE_SIZE = 100;
 
+/** Не 1 (слишком долго) и не N (429): параллельно, но с ограничением. */
+const ENRICH_CONCURRENCY = 8;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i]!);
+    }
+  }
+  const n = Math.min(Math.max(1, concurrency), Math.max(1, items.length));
+  await Promise.all(Array.from({ length: n }, () => worker()));
+  return out;
+}
+
 async function fetchEntityWithImagesExpanded(
   entity: "product" | "bundle",
   id: string
@@ -108,10 +130,7 @@ export async function fetchAllMsEntityRows(
     offset += PAGE_SIZE;
   }
 
-  /* Параллельно — 429 от nginx (limit_req) и МойСклад; по одному товару — стабильнее. */
-  const enriched: MsProduct[] = [];
-  for (const p of all) {
-    enriched.push(await enrichMsProductImagesIfNeeded(entity, p));
-  }
-  return enriched;
+  return mapWithConcurrency(all, ENRICH_CONCURRENCY, (p) =>
+    enrichMsProductImagesIfNeeded(entity, p)
+  );
 }

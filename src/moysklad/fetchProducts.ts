@@ -24,12 +24,14 @@ export async function fetchMoyskladCatalog(): Promise<{
     );
   }
 
-  const folderMeta = await fetchMoyskladFolderMetadata().catch(() => ({
-    paths: [] as string[],
-    idToPath: new Map<string, string>(),
-  }));
-  const productRows = await fetchAllMsEntityRows("product");
-  const bundleRows = await fetchAllMsEntityRows("bundle").catch(() => [] as MsProduct[]);
+  const [folderMeta, productRows, bundleRows] = await Promise.all([
+    fetchMoyskladFolderMetadata().catch(() => ({
+      paths: [] as string[],
+      idToPath: new Map<string, string>(),
+    })),
+    fetchAllMsEntityRows("product"),
+    fetchAllMsEntityRows("bundle").catch(() => [] as MsProduct[]),
+  ]);
 
   const rows = [...productRows, ...bundleRows];
   const products = rows.map((p) => mapMsProduct(p, folderMeta.idToPath));
