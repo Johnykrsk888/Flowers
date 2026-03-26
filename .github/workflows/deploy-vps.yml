@@ -17,9 +17,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# cancel-in-progress прерывает rsync по середине → часто exit code 12 (протокол).
 concurrency:
   group: deploy-vps
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -81,13 +82,29 @@ jobs:
           chmod 700 ~/.ssh
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
+      # mkdir: у rsync родительские каталоги должны существовать; ssh -T — без псевдо-TTY (частая причина protocol 12 из-за вывода из .bashrc).
+      - name: Каталог и rsync на сервере
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
+          "${SSH[@]}" "$USER@$HOST" "mkdir -p /var/www/flowers"
+          if ! "${SSH[@]}" "$USER@$HOST" "command -v rsync >/dev/null"; then
+            echo "::error::На сервере нет rsync. Установите: apt install rsync (Debian/Ubuntu) или dnf install rsync"
+            exit 1
+          fi
+
       - name: Rsync dist → /var/www/flowers
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
         run: |
           set -euo pipefail
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=yes -o BatchMode=yes" dist/ "$USER@$HOST:/var/www/flowers/"
+          rsync -avz --delete \
+            -e "ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
+            dist/ "$USER@$HOST:/var/www/flowers/"
 
       - name: Права для nginx
         env:
@@ -95,4 +112,4 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
         run: |
           set -euo pipefail
-          ssh -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "chown -R www-data:www-data /var/www/flowers"
+          ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "chown -R www-data:www-data /var/www/flowers"
