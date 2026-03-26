@@ -1,5 +1,5 @@
 /**
- * Прокси МойСклад для статического фронта (GitHub Pages): CORS + Basic auth на стороне Worker.
+ * Прокси МойСклад для статического фронта (опционально): CORS + Basic auth на стороне Worker.
  *
  * Развёртывание (Cloudflare Workers):
  *   npm i -g wrangler
