@@ -1,0 +1,13 @@
+[Unit]
+Description=Moysklad image stream proxy (storage через IP сервера)
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/moysklad/moysklad-image-proxy.env
+ExecStart=/usr/bin/python3 /opt/moysklad-image-proxy/moysklad-image-proxy.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

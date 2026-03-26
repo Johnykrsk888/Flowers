@@ -26,8 +26,13 @@ function extractUuidFromMoyskladStorageUrl(url: string): string | null {
   }
 }
 
-/** Прод: /download/{uuid} → /ms-image/download/{uuid} — сегмент перед /download/, иначе nginx матчит только JSON-location (415). */
-const PROD_DOWNLOAD_ALIAS = "/ms-image";
+/** Прод: бинарные /download и …/images/{id}/download — через img-proxy на VPS (Python стрим с IP сервера; иначе storage 401). */
+const PROD_IMG_STREAM_PREFIX = "/img-proxy";
+
+function needsImageStreamProxy(rest: string): boolean {
+  if (rest.startsWith("/download/")) return true;
+  return /\/images\/[^/]+\/download(?:\?|$)/i.test(rest);
+}
 
 function proxyRemapRest(rest: string, fallbackUrl: string): string {
   if (import.meta.env.DEV) {
@@ -35,8 +40,8 @@ function proxyRemapRest(rest: string, fallbackUrl: string): string {
   }
   const prefix = import.meta.env.VITE_MOYSKLAD_API_PREFIX?.replace(/\/$/, "");
   if (prefix) {
-    if (rest.startsWith("/download/")) {
-      return `${prefix}${PROD_DOWNLOAD_ALIAS}${rest}`;
+    if (needsImageStreamProxy(rest)) {
+      return `${prefix}${PROD_IMG_STREAM_PREFIX}${rest}`;
     }
     return `${prefix}${rest}`;
   }

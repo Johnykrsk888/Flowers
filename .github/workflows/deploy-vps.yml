@@ -8,6 +8,8 @@
 #   DEPLOY_SSH_KEY — приватный ключ целиком (BEGIN…END). Запасное имя: SSH_PRIVATE_KEY.
 #                    Только вкладка «Actions» repository secrets (не Dependabot, не Environment без job.environment).
 #
+#   MOYSKLAD_LOGIN, MOYSKLAD_PASSWORD — те же, что в .env для API (для Python image-proxy на VPS).
+#
 # Ключ на сервере: публичная часть в ~/.ssh/authorized_keys для DEPLOY_USER.
 
 name: Deploy to VPS (boombuket.ru)
@@ -107,6 +109,32 @@ jobs:
         run: |
           set -euo pipefail
           ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "chown -R www-data:www-data /var/www/flowers"
+
+      # Python на 127.0.0.1:8787 — стрим картинок с IP сервера (иначе storage 401 после редиректа в браузере).
+      - name: Moysklad image-proxy (Python) и systemd
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          LOGIN: ${{ secrets.MOYSKLAD_LOGIN }}
+          PASS: ${{ secrets.MOYSKLAD_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/moysklad-image-proxy.py "$USER@$HOST:/tmp/moysklad-image-proxy.py"
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/systemd/moysklad-image-proxy.service "$USER@$HOST:/tmp/moysklad-image-proxy.service"
+          "${SSH[@]}" "$USER@$HOST" 'install -d /opt/moysklad-image-proxy /etc/moysklad'
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then cp /tmp/moysklad-image-proxy.py /opt/moysklad-image-proxy/moysklad-image-proxy.py && chmod 755 /opt/moysklad-image-proxy/moysklad-image-proxy.py && cp /tmp/moysklad-image-proxy.service /etc/systemd/system/moysklad-image-proxy.service; else sudo cp /tmp/moysklad-image-proxy.py /opt/moysklad-image-proxy/moysklad-image-proxy.py && sudo chmod 755 /opt/moysklad-image-proxy/moysklad-image-proxy.py && sudo cp /tmp/moysklad-image-proxy.service /etc/systemd/system/moysklad-image-proxy.service; fi'
+          if [ -n "${LOGIN:-}" ] && [ -n "${PASS:-}" ]; then
+            printf '%s\n' "MOYSKLAD_LOGIN=${LOGIN}" "MOYSKLAD_PASSWORD=${PASS}" > /tmp/moysklad-image-proxy.env
+            scp -o StrictHostKeyChecking=yes -o BatchMode=yes /tmp/moysklad-image-proxy.env "$USER@$HOST:/tmp/moysklad-image-proxy.env"
+            rm -f /tmp/moysklad-image-proxy.env
+            "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then mv /tmp/moysklad-image-proxy.env /etc/moysklad/moysklad-image-proxy.env && chmod 600 /etc/moysklad/moysklad-image-proxy.env; else sudo mv /tmp/moysklad-image-proxy.env /etc/moysklad/moysklad-image-proxy.env && sudo chmod 600 /etc/moysklad/moysklad-image-proxy.env; fi'
+          else
+            echo "::warning::MOYSKLAD_LOGIN/MOYSKLAD_PASSWORD не в Secrets — нужен файл /etc/moysklad/moysklad-image-proxy.env на сервере"
+          fi
+          "${SSH[@]}" "$USER@$HOST" 'command -v python3 >/dev/null 2>&1 || (export DEBIAN_FRONTEND=noninteractive; apt-get update -y && apt-get install -y python3)'
+          "${SSH[@]}" "$USER@$HOST" 'test -f /etc/moysklad/moysklad-image-proxy.env' || { echo "::error::Нет /etc/moysklad/moysklad-image-proxy.env — добавьте MOYSKLAD_LOGIN и MOYSKLAD_PASSWORD в GitHub Secrets (как в .env) или создайте файл на сервере"; exit 1; }
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then systemctl daemon-reload && systemctl enable moysklad-image-proxy && systemctl restart moysklad-image-proxy; else sudo systemctl daemon-reload && sudo systemctl enable moysklad-image-proxy && sudo systemctl restart moysklad-image-proxy; fi'
 
       # Nginx: vhost + лимиты (без обновления snippets/conf.d на сервере 429 при каталоге).
       - name: Nginx flowers.conf, rate-limit, snippets и reload
