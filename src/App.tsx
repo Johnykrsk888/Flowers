@@ -12,9 +12,14 @@ import {
 
 function onProductImageError(e: SyntheticEvent<HTMLImageElement>) {
   const el = e.currentTarget;
-  if (el.src.startsWith('data:')) return;
+  if (el.src.startsWith("data:")) return;
   el.onerror = null;
-  el.src = PRODUCT_IMAGE_PLACEHOLDER_DATA;
+  // Уже показываем файл-заглушку, но он не загрузился → инлайн SVG
+  if (el.src.includes("product-placeholder.png")) {
+    el.src = PRODUCT_IMAGE_PLACEHOLDER_DATA;
+    return;
+  }
+  el.src = PRODUCT_IMAGE_PLACEHOLDER;
 }
 
 function onHeroImageError(e: SyntheticEvent<HTMLImageElement>) {
