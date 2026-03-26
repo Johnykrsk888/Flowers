@@ -1,0 +1,20 @@
+Усиление безопасности прокси МойСклад (nginx)
+==============================================
+
+1) Rate limiting (уже в репозитории)
+   - conf.d/rate-limit-moysklad.conf — зоны limit_req (20 r/s на IP) и limit_conn (30 соединений на IP).
+   - snippets/moysklad_rate_limits.conf — подключение в location API.
+   При 503 «Too Many Requests» увеличьте rate или burst в этих файлах на сервере.
+
+2) Белый список IP (опционально)
+   - Только если API через сайт не должен быть публичным (внутренний каталог).
+   - См. snippets/moysklad-allowlist.conf.example — иначе покупатели не получат данные.
+
+3) Деплой на сервер
+   - Скопировать conf.d и snippets в /etc/nginx/...
+   - В sites-enabled/flowers в каждом location для /api/moysklad добавить:
+     include /etc/nginx/snippets/moysklad_rate_limits.conf;
+   - nginx -t && systemctl reload nginx
+
+4) Мониторинг
+   - tail -f /var/log/nginx/error.log — при срабатывании лимитов.

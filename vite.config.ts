@@ -8,12 +8,14 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// GitHub Pages: сайт открывается как https://<user>.github.io/Flowers/
+// GitHub Pages: VITE_GITHUB_PAGES=true → base /Flowers/; иначе корень (VPS, nginx).
 const pagesBase = "/Flowers/";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const githubPages =
+    env.VITE_GITHUB_PAGES === "true" || env.VITE_GITHUB_PAGES === "1";
   const login = env.MOYSKLAD_LOGIN;
   const password = env.MOYSKLAD_PASSWORD;
   const basic =
@@ -22,7 +24,8 @@ export default defineConfig(({ mode }) => {
       : "";
 
   return {
-    base: mode === "production" ? pagesBase : "/",
+    base:
+      mode === "production" ? (githubPages ? pagesBase : "/") : "/",
     plugins: [react(), tailwindcss(), viteSingleFile()],
     resolve: {
       alias: {
@@ -40,7 +43,13 @@ export default defineConfig(({ mode }) => {
               configure: (proxy) => {
                 proxy.on("proxyReq", (proxyReq) => {
                   proxyReq.setHeader("Authorization", `Basic ${basic}`);
-                  proxyReq.setHeader("Accept", "application/json;charset=utf-8");
+                  const p = proxyReq.path || "";
+                  // Картинки /download — не запрашивать как JSON
+                  if (p.includes("/download/")) {
+                    proxyReq.setHeader("Accept", "*/*");
+                  } else {
+                    proxyReq.setHeader("Accept", "application/json;charset=utf-8");
+                  }
                 });
               },
             },

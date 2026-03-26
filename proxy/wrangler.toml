@@ -1,0 +1,4 @@
+# wrangler deploy — из каталога proxy/
+name = "flowers-moysklad-proxy"
+main = "cloudflare-worker.mjs"
+compatibility_date = "2024-10-01"

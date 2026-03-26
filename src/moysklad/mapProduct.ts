@@ -1,21 +1,75 @@
+import { normalizePathFromApi, resolvePathFromFolderLike } from "./categoryPath";
+import { folderIdFromHref } from "./folderId";
 import type { MsProduct } from "./types";
+import { mediaUrlForApp, normalizeMoyskladImageDownloadUrl } from "./mediaUrl";
+import { PRODUCT_IMAGE_PLACEHOLDER } from "./placeholderImage";
 
 /** Цены в МойСклад — в копейках (документация API Remap 1.2) */
 export function kopecksToRubles(value: number): number {
   return Math.round(value) / 100;
 }
 
+function scoreImageUrlCandidate(url: string): number {
+  const u = url.toLowerCase();
+  if (u.includes("/download")) return 0;
+  if (u.includes("storage.moysklad.ru")) return 1;
+  if (u.includes("api.moysklad.ru") && u.includes("/images/")) return 2;
+  if (u.includes("api.moysklad.ru")) return 3;
+  return 4;
+}
+
+/** Любые вложенные строки-URL в ответе API (формат полей после правок карточки плавает). */
+function collectImageUrlsDeep(row: MsImageRow): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const walk = (v: unknown): void => {
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (
+        /^https?:\/\//i.test(t) &&
+        (/\bmoysklad\b/i.test(t) || /\/images\//i.test(t) || /\/download/i.test(t)) &&
+        !seen.has(t)
+      ) {
+        seen.add(t);
+        out.push(t);
+      }
+      return;
+    }
+    if (!v || typeof v !== "object") return;
+    for (const x of Object.values(v)) walk(x);
+  };
+  walk(row);
+  return out.sort((a, b) => scoreImageUrlCandidate(a) - scoreImageUrlCandidate(b));
+}
+
 function pickImageUrl(p: MsProduct): string {
   const rows = p.images?.rows;
   if (rows?.length) {
     const first = rows[0];
-    const url =
-      first.tiny?.href ||
-      first.miniature?.downloadHref ||
-      first.meta?.downloadHref;
-    if (url) return url;
+    /** От крупного к мелкому — иначе tiny/миниатюра растягиваются на h-64 и размываются. */
+    const candidates = [
+      first.downloadHref,
+      first.meta?.downloadHref,
+      first.medium?.downloadHref,
+      first.medium?.href,
+      first.miniature?.downloadHref,
+      first.miniature?.href,
+      first.tiny?.downloadHref,
+      first.tiny?.href,
+      first.meta?.href,
+    ];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const normalized = normalizeMoyskladImageDownloadUrl(raw);
+      /** Не добавлять query к URL: у storage.moysklad.ru подпись (temp_url_sig) ломается. */
+      return mediaUrlForApp(normalized);
+    }
+    for (const raw of collectImageUrlsDeep(first)) {
+      const normalized = normalizeMoyskladImageDownloadUrl(raw);
+      return mediaUrlForApp(normalized);
+    }
   }
-  return "https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&q=80&w=400&h=400";
+  return PRODUCT_IMAGE_PLACEHOLDER;
 }
 
 function mainPriceRub(p: MsProduct): number {
@@ -56,11 +110,27 @@ export interface CatalogProduct {
   barcodes?: string;
 }
 
-export function mapMsProduct(p: MsProduct): CatalogProduct {
-  const category =
-    p.productFolder?.name ||
-    (p.pathName ? p.pathName.split("/").filter(Boolean).pop() : undefined) ||
-    "Каталог";
+function categoryFromProduct(
+  p: MsProduct,
+  folderIdToPath?: Map<string, string>
+): string {
+  const fromProductPath = normalizePathFromApi(p.pathName);
+  if (fromProductPath) return fromProductPath;
+  const folderId =
+    p.productFolder?.id ?? folderIdFromHref(p.productFolder?.meta?.href);
+  if (folderId && folderIdToPath?.has(folderId)) {
+    return folderIdToPath.get(folderId)!;
+  }
+  const fromFolder = resolvePathFromFolderLike(p.productFolder);
+  if (fromFolder) return fromFolder;
+  return "Каталог";
+}
+
+export function mapMsProduct(
+  p: MsProduct,
+  folderIdToPath?: Map<string, string>
+): CatalogProduct {
+  const category = categoryFromProduct(p, folderIdToPath);
 
   const salePricesLabels =
     p.salePrices?.map((x) => ({

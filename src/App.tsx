@@ -1,7 +1,28 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Heart, Search, Menu, X, Star, Truck, Flower2, Award, Clock, ChevronRight, Phone, Mail, Share2, Users, Plus, Minus, Trash2 } from 'lucide-react';
-import { fetchMoyskladProducts } from '@/moysklad/fetchProducts';
+import { useState, useEffect, useMemo, useCallback, type SyntheticEvent } from 'react';
+import { ShoppingCart, Heart, Search, Menu, X, Star, Truck, Flower2, Award, Clock, ChevronRight, Phone, Mail, Share2, Users, Plus, Minus, Trash2, RefreshCw } from 'lucide-react';
+import { fetchMoyskladCatalog } from '@/moysklad/fetchProducts';
+import { productMatchesCategoryPath } from '@/moysklad/categoryPath';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
+import {
+  PRODUCT_IMAGE_PLACEHOLDER,
+  PRODUCT_IMAGE_PLACEHOLDER_DATA,
+  HERO_IMAGE_URL,
+  HERO_FALLBACK_DATA,
+} from '@/moysklad/placeholderImage';
+
+function onProductImageError(e: SyntheticEvent<HTMLImageElement>) {
+  const el = e.currentTarget;
+  if (el.src.startsWith('data:')) return;
+  el.onerror = null;
+  el.src = PRODUCT_IMAGE_PLACEHOLDER_DATA;
+}
+
+function onHeroImageError(e: SyntheticEvent<HTMLImageElement>) {
+  const el = e.currentTarget;
+  if (el.src.startsWith('data:')) return;
+  el.onerror = null;
+  el.src = HERO_FALLBACK_DATA;
+}
 
 type Product = CatalogProduct;
 
@@ -13,7 +34,6 @@ const reviews = [
   {
     id: 1,
     name: 'Анна Петрова',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100',
     rating: 5,
     text: 'Очень довольна! Букет был просто великолепен, доставка вовремя. Обязательно закажу ещё!',
     date: '12 мая 2024'
@@ -21,7 +41,6 @@ const reviews = [
   {
     id: 2,
     name: 'Михаил Сидоров',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100',
     rating: 5,
     text: 'Заказал цветы жене на годовщину. Она в восторге! Свежие цветы, красивая упаковка.',
     date: '8 мая 2024'
@@ -29,12 +48,28 @@ const reviews = [
   {
     id: 3,
     name: 'Елена Козлова',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100',
     rating: 4,
     text: 'Отличный сервис! Консультант помогла подобрать идеальный букет для мамы.',
     date: '5 мая 2024'
   }
 ];
+
+function ReviewAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  return (
+    <div
+      className="w-14 h-14 rounded-full border-2 border-rose-200 flex items-center justify-center text-sm font-bold text-white shrink-0 bg-gradient-to-br from-rose-400 to-pink-500"
+      aria-hidden
+    >
+      {initials}
+    </div>
+  );
+}
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -47,36 +82,54 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Все');
   const [searchQuery, setSearchQuery] = useState('');
+  const [folderPaths, setFolderPaths] = useState<string[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setProductsLoading(true);
-      setProductsError(null);
-      try {
-        const list = await fetchMoyskladProducts();
-        if (!cancelled) setProducts(list);
-      } catch (e) {
-        if (!cancelled) {
-          setProductsError(e instanceof Error ? e.message : String(e));
-          setProducts([]);
-        }
-      } finally {
-        if (!cancelled) setProductsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadProducts = useCallback(async () => {
+    setProductsLoading(true);
+    setProductsError(null);
+    try {
+      const { products: list, folderPaths: folders } = await fetchMoyskladCatalog();
+      setProducts(list);
+      setFolderPaths(folders);
+      setCart((prev) =>
+        prev.map((item) => {
+          const fresh = list.find((p) => p.id === item.id);
+          return fresh ? { ...fresh, quantity: item.quantity } : item;
+        })
+      );
+    } catch (e) {
+      setProductsError(e instanceof Error ? e.message : String(e));
+      setProducts([]);
+      setFolderPaths([]);
+    } finally {
+      setProductsLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
   const categories = useMemo(() => {
-    const names = [...new Set(products.map((p) => p.category))].filter(Boolean).sort();
+    const names = new Set<string>();
+    products.forEach((p) => names.add(p.category));
+    folderPaths.forEach((f) => names.add(f));
+    const sorted = Array.from(names)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'ru'));
     return [
       { name: 'Все', icon: '🌸' },
-      ...names.map((n) => ({ name: n, icon: '🌿' })),
+      ...sorted.map((n) => ({ name: n, icon: '🌿' })),
     ];
-  }, [products]);
+  }, [products, folderPaths]);
+
+  useEffect(() => {
+    if (selectedCategory === 'Все') return;
+    const valid = new Set(categories.map((c) => c.name));
+    if (!valid.has(selectedCategory)) {
+      setSelectedCategory('Все');
+    }
+  }, [categories, selectedCategory]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -115,7 +168,10 @@ export default function App() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesCategory = selectedCategory === 'Все' || product.category === selectedCategory;
+    const matchesCategory = productMatchesCategoryPath(
+      product.category,
+      selectedCategory
+    );
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       !q ||
@@ -252,8 +308,9 @@ export default function App() {
               <div className="absolute -top-10 -left-10 w-72 h-72 bg-rose-200 rounded-full blur-3xl opacity-50"></div>
               <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-pink-200 rounded-full blur-3xl opacity-50"></div>
               <img
-                src="https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&q=80&w=600&h=600"
+                src={HERO_IMAGE_URL}
                 alt="Красивый букет цветов"
+                onError={onHeroImageError}
                 className="relative rounded-3xl shadow-2xl w-full max-w-lg mx-auto transform hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
@@ -313,9 +370,20 @@ export default function App() {
       {/* Catalog Section */}
       <section id="catalog" className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Хит продаж</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Самые популярные букеты этого сезона</p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 max-w-5xl mx-auto text-center sm:text-left">
+            <div className="sm:flex-1">
+              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Хит продаж</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto sm:mx-0">Самые популярные букеты этого сезона</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadProducts()}
+              disabled={productsLoading}
+              className="inline-flex items-center justify-center gap-2 self-center sm:self-auto px-5 py-2.5 rounded-full border-2 border-rose-200 bg-white text-rose-600 font-medium hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <RefreshCw className={`w-5 h-5 ${productsLoading ? 'animate-spin' : ''}`} aria-hidden />
+              Обновить из МойСклад
+            </button>
           </div>
 
           {/* Search & Filter */}
@@ -339,15 +407,17 @@ export default function App() {
               {categories.map((category) => (
                 <button
                   key={category.name}
+                  type="button"
+                  title={category.name}
                   onClick={() => setSelectedCategory(category.name)}
-                  className={`px-6 py-3 rounded-full font-medium transition-all ${
+                  className={`max-w-[min(100%,20rem)] px-4 py-3 rounded-full font-medium transition-all text-left ${
                     selectedCategory === category.name
                       ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-200'
                       : 'bg-white text-gray-700 hover:bg-rose-50 border border-gray-200'
                   }`}
                 >
                   <span className="mr-2">{category.icon}</span>
-                  {category.name}
+                  <span className="align-middle line-clamp-2 break-words">{category.name}</span>
                 </button>
               ))}
             </div>
@@ -373,9 +443,11 @@ export default function App() {
               >
                 <div className="relative overflow-hidden">
                   <img
-                    src={product.image}
+                    src={product.image || PRODUCT_IMAGE_PLACEHOLDER}
                     alt={product.name}
-                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={onProductImageError}
+                    decoding="async"
+                    className="w-full h-64 min-h-[16rem] object-cover object-center bg-rose-50 group-hover:scale-[1.02] transition-transform duration-500"
                   />
                   <button
                     onClick={() => toggleFavorite(product.id)}
@@ -474,11 +546,7 @@ export default function App() {
             {reviews.map((review) => (
               <div key={review.id} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow">
                 <div className="flex items-center gap-4 mb-6">
-                  <img
-                    src={review.avatar}
-                    alt={review.name}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-rose-200"
-                  />
+                  <ReviewAvatar name={review.name} />
                   <div>
                     <div className="font-bold text-gray-900">{review.name}</div>
                     <div className="text-sm text-gray-500">{review.date}</div>
@@ -635,9 +703,10 @@ export default function App() {
                     {cart.map((item) => (
                       <div key={item.id} className="flex gap-4 bg-gray-50 rounded-2xl p-4">
                         <img
-                          src={item.image}
+                          src={item.image || PRODUCT_IMAGE_PLACEHOLDER}
                           alt={item.name}
-                          className="w-20 h-20 object-cover rounded-xl"
+                          onError={onProductImageError}
+                          className="w-20 h-20 min-h-[5rem] object-cover rounded-xl bg-rose-50"
                         />
                         <div className="flex-1">
                           <h4 className="font-semibold text-gray-900">{item.name}</h4>
