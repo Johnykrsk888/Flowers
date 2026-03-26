@@ -21,7 +21,7 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-# cancel-in-progress прерывает rsync по середине → часто exit code 12 (протокол).
+# cancel-in-progress прерывает выгрузку по середине.
 concurrency:
   group: deploy-vps
   cancel-in-progress: false
@@ -86,8 +86,8 @@ jobs:
           chmod 700 ~/.ssh
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-      # mkdir: у rsync родительские каталоги должны существовать; ssh -T — без псевдо-TTY (частая причина protocol 12 из-за вывода из .bashrc).
-      - name: Каталог и rsync на сервере
+      # tar по SSH: на сервере не нужен rsync (достаточно tar + ssh, как в минимальном образе).
+      - name: dist → /var/www/flowers (tar по SSH)
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
@@ -95,20 +95,8 @@ jobs:
           set -euo pipefail
           SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
           "${SSH[@]}" "$USER@$HOST" "mkdir -p /var/www/flowers"
-          if ! "${SSH[@]}" "$USER@$HOST" "command -v rsync >/dev/null"; then
-            echo "::error::На сервере нет rsync. Установите: apt install rsync (Debian/Ubuntu) или dnf install rsync"
-            exit 1
-          fi
-
-      - name: Rsync dist → /var/www/flowers
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
-        run: |
-          set -euo pipefail
-          rsync -avz --delete \
-            -e "ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
-            dist/ "$USER@$HOST:/var/www/flowers/"
+          "${SSH[@]}" "$USER@$HOST" "find /var/www/flowers -mindepth 1 -delete"
+          tar czf - -C dist . | "${SSH[@]}" "$USER@$HOST" "tar xzf - -C /var/www/flowers"
 
       - name: Права для nginx
         env:
