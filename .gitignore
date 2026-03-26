@@ -19,3 +19,6 @@ Thumbs.db
 # Env
 .env
 .env.*
+
+# Локальные временные файлы
+.tmp-api.json
