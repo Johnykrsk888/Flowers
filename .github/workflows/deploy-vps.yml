@@ -53,6 +53,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/download-artifact@v8
         with:
           name: dist
@@ -105,3 +107,14 @@ jobs:
         run: |
           set -euo pipefail
           ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "chown -R www-data:www-data /var/www/flowers"
+
+      # Репозиторий содержит deploy/nginx/flowers.conf; dist на сервер не копирует nginx — без этого правки прокси не применяются.
+      - name: Nginx sites-available/flowers и reload
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/nginx/flowers.conf "$USER@$HOST:/tmp/flowers.conf"
+          "${SSH[@]}" "$USER@$HOST" "sudo cp /tmp/flowers.conf /etc/nginx/sites-available/flowers && sudo nginx -t && sudo systemctl reload nginx"
