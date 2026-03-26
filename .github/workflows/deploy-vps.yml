@@ -108,8 +108,8 @@ jobs:
           set -euo pipefail
           ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "chown -R www-data:www-data /var/www/flowers"
 
-      # Репозиторий содержит deploy/nginx/flowers.conf; dist на сервер не копирует nginx — без этого правки прокси не применяются.
-      - name: Nginx sites-available/flowers и reload
+      # Nginx: vhost + лимиты (без обновления snippets/conf.d на сервере 429 при каталоге).
+      - name: Nginx flowers.conf, rate-limit, snippets и reload
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
@@ -117,4 +117,6 @@ jobs:
           set -euo pipefail
           SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
           scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/nginx/flowers.conf "$USER@$HOST:/tmp/flowers.conf"
-          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then cp /tmp/flowers.conf /etc/nginx/sites-available/flowers && nginx -t && systemctl reload nginx; else sudo cp /tmp/flowers.conf /etc/nginx/sites-available/flowers && sudo nginx -t && sudo systemctl reload nginx; fi'
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/nginx/conf.d/rate-limit-moysklad.conf "$USER@$HOST:/tmp/rate-limit-moysklad.conf"
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/nginx/snippets/moysklad_rate_limits.conf "$USER@$HOST:/tmp/moysklad_rate_limits.conf"
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then install -d /etc/nginx/conf.d; cp /tmp/flowers.conf /etc/nginx/sites-available/flowers; cp /tmp/rate-limit-moysklad.conf /etc/nginx/conf.d/rate-limit-moysklad.conf; cp /tmp/moysklad_rate_limits.conf /etc/nginx/snippets/moysklad_rate_limits.conf; nginx -t && systemctl reload nginx; else sudo install -d /etc/nginx/conf.d; sudo cp /tmp/flowers.conf /etc/nginx/sites-available/flowers; sudo cp /tmp/rate-limit-moysklad.conf /etc/nginx/conf.d/rate-limit-moysklad.conf; sudo cp /tmp/moysklad_rate_limits.conf /etc/nginx/snippets/moysklad_rate_limits.conf; sudo nginx -t && sudo systemctl reload nginx; fi'

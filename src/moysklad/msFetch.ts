@@ -1,6 +1,8 @@
 /**
- * GET к JSON API МойСклад через прокси: единые заголовки (без пауз и ретраев).
+ * GET к JSON API МойСклад через прокси: заголовки + повтор при 429 (nginx / МойСклад).
  */
+const MAX_429_RETRIES = 12;
+
 export async function msFetchJson(url: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
   if (!headers.has("Accept")) {
@@ -9,5 +11,20 @@ export async function msFetchJson(url: string, init?: RequestInit): Promise<Resp
   if (!headers.has("Cache-Control")) {
     headers.set("Cache-Control", "no-cache");
   }
-  return fetch(url, { ...init, cache: "no-store", headers });
+  const merged: RequestInit = { ...init, cache: "no-store", headers };
+
+  let last: Response | undefined;
+  for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
+    last = await fetch(url, merged);
+    if (last.status !== 429) {
+      return last;
+    }
+    const ra = last.headers.get("Retry-After");
+    const sec = ra ? parseInt(ra, 10) : NaN;
+    const backoffMs = Number.isFinite(sec) && sec >= 0
+      ? Math.max(sec * 1000, 400)
+      : Math.min(90_000, 600 * 2 ** attempt);
+    await new Promise((r) => setTimeout(r, backoffMs));
+  }
+  return last!;
 }

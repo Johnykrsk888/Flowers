@@ -108,5 +108,10 @@ export async function fetchAllMsEntityRows(
     offset += PAGE_SIZE;
   }
 
-  return Promise.all(all.map((p) => enrichMsProductImagesIfNeeded(entity, p)));
+  /* Параллельно — 429 от nginx (limit_req) и МойСклад; по одному товару — стабильнее. */
+  const enriched: MsProduct[] = [];
+  for (const p of all) {
+    enriched.push(await enrichMsProductImagesIfNeeded(entity, p));
+  }
+  return enriched;
 }
