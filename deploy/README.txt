@@ -1,3 +1,10 @@
+GitHub Actions → автодеплой на boombuket.ru
+============================================
+Репозиторий: .github/workflows/deploy-vps.yml (push в main).
+
+Секреты в GitHub (Settings → Secrets and variables → Actions):
+  DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (приватный ключ; на сервере — соответствующий public key в authorized_keys).
+
 Настройка nginx + ufw + прокси МойСклад на сервере Linux
 ============================================================
 

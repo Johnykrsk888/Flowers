@@ -1,0 +1,70 @@
+# Автодеплой на VPS при push в main.
+#
+# Секреты (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST    — IP или хост (например 79.174.91.140)
+#   DEPLOY_USER    — SSH-пользователь (например root)
+#   DEPLOY_SSH_KEY — приватный ключ ed25519/RSA (весь PEM, BEGIN/END OPENSSH PRIVATE KEY)
+#
+# Ключ на сервере: публичная часть в ~/.ssh/authorized_keys для DEPLOY_USER.
+
+name: Deploy to VPS (boombuket.ru)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build production
+        run: npm run build
+        env:
+          VITE_MOYSKLAD_API_PREFIX: https://www.boombuket.ru/api/moysklad
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Добавить хост в known_hosts
+        run: ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync dist → /var/www/flowers
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: rsync -avz --delete -e "ssh -o StrictHostKeyChecking=yes" dist/ "$USER@$HOST:/var/www/flowers/"
+
+      - name: Права для nginx
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: ssh -o StrictHostKeyChecking=yes "$USER@$HOST" "chown -R www-data:www-data /var/www/flowers"
