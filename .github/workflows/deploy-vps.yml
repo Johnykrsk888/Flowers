@@ -182,6 +182,8 @@ jobs:
           fi
           "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then cp /tmp/flowers-catalog.service /etc/systemd/system/flowers-catalog.service; else sudo cp /tmp/flowers-catalog.service /etc/systemd/system/flowers-catalog.service; fi'
           "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then systemctl daemon-reload && systemctl enable flowers-catalog && systemctl restart flowers-catalog; else sudo systemctl daemon-reload && sudo systemctl enable flowers-catalog && sudo systemctl restart flowers-catalog; fi'
+          echo "::notice::Синхронизация МойСклад → БД и скачивание изображений на диск VPS (без этого /uploads/ даёт 404)"
+          "${SSH[@]}" "$USER@$HOST" "cd /opt/flowers-catalog && DOTENV_CONFIG_PATH=/etc/flowers/catalog.env node ./node_modules/tsx/dist/cli.mjs server/sync-cli.ts"
           "${SSH[@]}" "$USER@$HOST" "curl -sfS http://127.0.0.1:8788/api/catalog/products >/dev/null" || { echo "::error::catalog-server не отвечает на 8788"; exit 1; }
           echo "::notice::flowers-catalog активен на 127.0.0.1:8788"
 

@@ -1,5 +1,15 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import { createPool, initSchema } from "./db.js";
+
+const envFile =
+  process.env.DOTENV_CONFIG_PATH?.trim() ||
+  process.env.CATALOG_ENV_PATH?.trim() ||
+  "";
+if (envFile) {
+  loadEnv({ path: envFile });
+} else {
+  loadEnv();
+}
 import { syncCatalog } from "./syncCatalog.js";
 
 async function main() {
