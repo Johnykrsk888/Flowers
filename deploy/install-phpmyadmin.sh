@@ -59,6 +59,7 @@ chmod 640 /var/www/phpmyadmin/config.inc.php
 WEB_PASS=$(openssl rand -hex 12)
 install -d -m 0755 /var/www/phpmyadmin
 htpasswd -bcB /var/www/phpmyadmin/.htpasswd admin "${WEB_PASS}" >/dev/null
+htpasswd -bB /var/www/phpmyadmin/.htpasswd root "${MYSQL_ROOT}" >/dev/null
 chown www-data:www-data /var/www/phpmyadmin/.htpasswd
 chmod 600 /var/www/phpmyadmin/.htpasswd
 

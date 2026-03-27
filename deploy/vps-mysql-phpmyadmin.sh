@@ -130,7 +130,9 @@ if [[ -f "$DEPLOY_DIR/patch-phpmyadmin-default-db.sh" ]]; then
 fi
 
 install -d -m 0755 /var/www/phpmyadmin
+# HTTP Basic: admin (случайный) и root (тот же пароль, что у MariaDB root — удобно для первого окна)
 htpasswd -bcB /var/www/phpmyadmin/.htpasswd admin "${BASIC_PW}" >/dev/null
+htpasswd -bB /var/www/phpmyadmin/.htpasswd root "${ROOT_PW_NEW}" >/dev/null
 chown www-data:www-data /var/www/phpmyadmin/.htpasswd
 chmod 600 /var/www/phpmyadmin/.htpasswd
 

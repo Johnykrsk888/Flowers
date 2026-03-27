@@ -72,7 +72,7 @@ MariaDB / phpMyAdmin (пустая БД для приложения)
 
 Строки для .env на ПК: на сервере выполните cat /etc/flowers/mysql-dotenv.txt и вставьте в локальный .env.
 
-URL: https://www.boombuket.ru/phpmyadmin/ — сначала HTTP Basic (admin + PHPMYADMIN_BASIC_PASSWORD), затем форма: root или flowers_mysql с паролями из mysql-dotenv.txt.
+URL: https://www.boombuket.ru/phpmyadmin/ — сначала HTTP Basic: либо admin + PHPMYADMIN_BASIC_PASSWORD, либо root + PHPMYADMIN_MYSQL_PASSWORD (оба пользователя должны быть в .htpasswd; vps-mysql-phpmyadmin.sh и install-phpmyadmin.sh добавляют root). Затем форма MariaDB: root + PHPMYADMIN_MYSQL_PASSWORD или flowers_mysql + MYSQL_PASSWORD.
 
 После входа под root (и любыми учётными данными) открывается сразу структура БД flowers_mysql: файл /var/www/phpmyadmin/config.footer.inc.php (ставит vps-mysql-phpmyadmin.sh или bash deploy/patch-phpmyadmin-default-db.sh; с ПК: python scripts/vps-apply-phpmyadmin-footer.py). Повторный переход на «главную» в той же вкладке — без редиректа (sessionStorage).
 
