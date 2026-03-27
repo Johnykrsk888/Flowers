@@ -62,6 +62,16 @@ function onHeroCarouselImageError(e: SyntheticEvent<HTMLImageElement>) {
   }
 }
 
+/** Стабильный id для якоря секции категории (совпадает с чипом и футером). */
+function catalogCategorySectionId(name: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `catalog-cat-${(h >>> 0).toString(16)}`;
+}
+
 type Product = CatalogProduct;
 
 interface CartItem extends Product {
@@ -310,6 +320,12 @@ export default function App() {
     document.getElementById('catalog-hits')?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const scrollToCategorySection = (name: string) => {
+    const el = document.getElementById(catalogCategorySectionId(name));
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else scrollToHits();
+  };
+
   return (
     <div className="min-h-screen bg-[var(--lilar-bg)]">
       {/* Верхняя полоса — как у крупных витрин */}
@@ -338,9 +354,16 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-3 lg:gap-6">
             <a href="#" className="flex items-center gap-2 shrink-0">
-              <Flower2 className="w-9 h-9 text-[var(--lilar-primary)]" />
+              <img
+                src="/logo-bumbuket.png"
+                alt=""
+                width={36}
+                height={36}
+                decoding="async"
+                className="w-9 h-9 shrink-0 object-contain"
+              />
               <span className="text-lg sm:text-xl font-bold text-[var(--lilar-text)]">
-                Цветочный Рай
+                БУМБУКЕТ
               </span>
             </a>
             <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-neutral-700">
@@ -461,7 +484,7 @@ export default function App() {
               <button
                 key={name}
                 type="button"
-                onClick={() => scrollToHits()}
+                onClick={() => scrollToCategorySection(name)}
                 aria-label={`Перейти к категории: ${name}`}
                 className="group flex min-w-0 w-full flex-col items-center text-left"
               >
@@ -560,7 +583,8 @@ export default function App() {
         return (
           <section
             key={cat}
-            className="py-10 bg-[var(--lilar-bg)] border-b border-[var(--lilar-border)]"
+            id={catalogCategorySectionId(cat)}
+            className="py-10 bg-[var(--lilar-bg)] border-b border-[var(--lilar-border)] scroll-mt-24"
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <h2 className="text-xl sm:text-2xl font-bold text-[var(--lilar-text)] mb-6">{cat}</h2>
@@ -681,7 +705,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Flower2 className="w-8 h-8 text-emerald-400" />
-                <span className="text-xl font-bold">Цветочный Рай</span>
+                <span className="text-xl font-bold">БУМБУКЕТ</span>
               </div>
               <p className="text-neutral-400 text-sm mb-4">
                 Интернет-магазин цветов: каталог из базы, оплата и доставка по договорённости.
@@ -709,7 +733,11 @@ export default function App() {
               <ul className="space-y-2 text-sm text-neutral-400">
                 {folderPaths.slice(0, 6).map((f) => (
                   <li key={f}>
-                    <button type="button" onClick={() => scrollToHits()} className="hover:text-white text-left transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => scrollToCategorySection(f)}
+                      className="hover:text-white text-left transition-colors"
+                    >
                       {f}
                     </button>
                   </li>
@@ -735,7 +763,7 @@ export default function App() {
             </div>
           </div>
           <div className="border-t border-neutral-800 mt-10 pt-8 text-center text-xs text-neutral-500">
-            <p>© {new Date().getFullYear()} Цветочный Рай. Информация на сайте не является публичной офертой.</p>
+            <p>© {new Date().getFullYear()} БУМБУКЕТ. Информация на сайте не является публичной офертой.</p>
           </div>
         </div>
       </footer>
