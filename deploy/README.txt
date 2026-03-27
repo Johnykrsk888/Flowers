@@ -69,7 +69,8 @@ phpMyAdmin (MariaDB) — только для MySQL/MariaDB
 Установка на сервере: bash deploy/install-phpmyadmin.sh (от root; см. репозиторий).
 
 URL: https://www.boombuket.ru/phpmyadmin/
-Два входа: (1) HTTP Basic в браузере, (2) логин MariaDB в форме phpMyAdmin.
+Вход: (1) HTTP Basic (admin + пароль), (2) MariaDB может быть настроен автовходом
+      (deploy/configure-phpmyadmin-config-auth.sh — пароль в /etc/flowers/phpmyadmin-mysql.secret).
 Пароли только на сервере: cat /etc/flowers/phpmyadmin-access.txt
 
 База PostgreSQL «flowers» в phpMyAdmin не видна — для неё нужен pgAdmin или Adminer с драйвером pgsql.

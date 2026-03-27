@@ -71,9 +71,10 @@ URL: https://www.boombuket.ru/phpmyadmin/
   Логин: admin
   Пароль: ${WEB_PASS}
 
-Шаг 2 — форма phpMyAdmin (MySQL/MariaDB):
+Шаг 2 — форма phpMyAdmin (MySQL/MariaDB), если не включён автовход:
   Пользователь: root
   Пароль: ${MYSQL_ROOT}
+  Автовход: bash configure-phpmyadmin-config-auth.sh (в репозитории deploy/)
 
 Примечание: база PostgreSQL «flowers» в phpMyAdmin не отображается — это отдельный движок.
 ACC
