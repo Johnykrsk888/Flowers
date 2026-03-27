@@ -50,3 +50,16 @@ HTTPS (уже настроено на сервере):
 Если запросы к http://ВАШ_IP/api/moysklad/... возвращают 415, а с домашнего ПК к api.moysklad.ru — 200,
 в аккаунте МойСклад проверьте ограничение доступа по IP (безопасность / разрешённые адреса)
 и добавьте IP сервера 79.174.91.140 или обратитесь в поддержку МойСклад.
+
+PostgreSQL — каталог товаров на сервере
+========================================
+Установлено: БД flowers, пользователь flowers_app, таблица products (см. deploy/sql/products_schema.sql).
+
+Повторное создание (PuTTY / SSH от root), если файлы уже в /tmp:
+  bash /tmp/create-products-db.sh /tmp/products_schema.sql
+
+Пароль приложения: только на сервере, файл /etc/flowers/db-password (chmod 600).
+Подключение с сервера: postgresql://flowers_app:ПАРОЛЬ_из_файла@127.0.0.1:5432/flowers
+
+Проверка:
+  sudo -u postgres psql -d flowers -c "\dt"
