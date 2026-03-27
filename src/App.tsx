@@ -23,6 +23,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { LilarProductCard } from '@/components/lilar/ProductCard';
+import { HeroCarousel, type HeroSlide } from '@/components/lilar/HeroCarousel';
 import { fetchCatalogFromDb, postCatalogSync } from '@/catalog/fetchCatalog';
 import { productMatchesCategoryPath } from '@/moysklad/categoryPath';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
@@ -50,6 +51,15 @@ function onHeroImageError(e: SyntheticEvent<HTMLImageElement>) {
   if (el.src.startsWith('data:')) return;
   el.onerror = null;
   el.src = HERO_FALLBACK_DATA;
+}
+
+function onHeroCarouselImageError(e: SyntheticEvent<HTMLImageElement>) {
+  const el = e.currentTarget;
+  if (el.src.includes('hero-bouquet')) {
+    onHeroImageError(e);
+  } else {
+    onProductImageError(e);
+  }
 }
 
 type Product = CatalogProduct;
@@ -171,6 +181,50 @@ export default function App() {
       ...sorted.map((n) => ({ name: n, icon: '🌿' })),
     ];
   }, [products, folderPaths]);
+
+  /** Превью категории в hero: первое фото товара из группы или заглушка (как сетка на lilar.ru). */
+  const categoryHeroChips = useMemo(() => {
+    return categories
+      .filter((c) => c.name !== 'Все')
+      .map((c) => {
+        const product = products.find(
+          (p) =>
+            productMatchesCategoryPath(p.category, c.name) &&
+            p.image &&
+            String(p.image).trim() !== ''
+        );
+        return {
+          name: c.name,
+          image: product?.image ?? PRODUCT_IMAGE_PLACEHOLDER,
+        };
+      });
+  }, [categories, products]);
+
+  const heroSlides = useMemo((): HeroSlide[] => {
+    const out: HeroSlide[] = [];
+    const seen = new Set<string>();
+    for (const p of products) {
+      const src = p.image?.trim();
+      if (!src || seen.has(src)) continue;
+      seen.add(src);
+      out.push({
+        src,
+        title: p.name,
+        href: '#catalog-full',
+      });
+      if (out.length >= 5) break;
+    }
+    if (out.length === 0) {
+      return [
+        {
+          src: HERO_IMAGE_URL,
+          title: 'Доставка цветов — выберите букет онлайн',
+          href: '#catalog-hits',
+        },
+      ];
+    }
+    return out;
+  }, [products]);
 
   useEffect(() => {
     if (selectedCategory === 'Все') return;
@@ -398,62 +452,44 @@ export default function App() {
 
       {/* Герой + чипы категорий */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#e8f0eb] via-[#f5f3ef] to-[#ede8e0] border-b border-[var(--lilar-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <div className="space-y-6">
-              <p className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--lilar-primary)]">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                Свежие букеты · каталог из базы
-              </p>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--lilar-text)] leading-tight">
-                Доставка цветов — выберите букет онлайн
-              </h1>
-              <p className="text-[var(--lilar-muted)] text-base max-w-xl">
-                Актуальные позиции и фото из МойСклад. Оформите заказ в корзине — мы свяжемся для уточнения доставки.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <a
-                  href="#catalog-hits"
-                  className="inline-flex items-center justify-center gap-2 bg-[var(--lilar-primary)] text-white px-8 py-3.5 rounded-full font-semibold text-sm hover:bg-[var(--lilar-primary-hover)] transition-colors shadow-md"
-                >
-                  Смотреть хиты
-                  <ChevronRight className="w-4 h-4" />
-                </a>
-                <a
-                  href="tel:+78001234567"
-                  className="inline-flex items-center justify-center gap-2 border-2 border-[var(--lilar-primary)] text-[var(--lilar-primary)] px-8 py-3.5 rounded-full font-semibold text-sm hover:bg-white/80 transition-colors"
-                >
-                  <Phone className="w-4 h-4" />
-                  Перезвонить
-                </a>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute -inset-4 bg-[var(--lilar-primary)]/10 rounded-[2rem] blur-2xl" aria-hidden />
-              <img
-                src={HERO_IMAGE_URL}
-                alt="Букет цветов"
-                onError={onHeroImageError}
-                className="relative rounded-2xl shadow-xl w-full max-w-lg mx-auto object-cover aspect-[4/5] lg:aspect-square"
-              />
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 lg:py-7">
+          <h1 className="sr-only">Доставка цветов — выберите букет онлайн</h1>
+          <HeroCarousel slides={heroSlides} onImageError={onHeroCarouselImageError} />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
-          <p className="text-xs text-[var(--lilar-muted)] mb-2">Категории</p>
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin -mx-1 px-1">
-            {categories
-              .filter((c) => c.name !== 'Все')
-              .map((category) => (
-                <button
-                  key={category.name}
-                  type="button"
-                  onClick={() => scrollToCatalog(category.name)}
-                  className="shrink-0 px-4 py-2 rounded-full text-sm font-medium bg-white border border-[var(--lilar-border)] text-[var(--lilar-text)] hover:border-[var(--lilar-primary)] hover:text-[var(--lilar-primary)] transition-colors whitespace-nowrap"
-                >
-                  {category.name}
-                </button>
-              ))}
+          <p className="text-xs text-[var(--lilar-muted)] mb-3">Категории</p>
+          <div
+            className="grid w-full gap-0.5 sm:gap-1"
+            style={{
+              gridTemplateColumns:
+                categoryHeroChips.length > 0
+                  ? `repeat(${categoryHeroChips.length}, minmax(0, 1fr))`
+                  : undefined,
+            }}
+          >
+            {categoryHeroChips.map(({ name, image }) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => scrollToCatalog(name)}
+                aria-label={`Перейти к категории: ${name}`}
+                className="group flex min-w-0 w-full flex-col items-center text-left"
+              >
+                <div className="relative mx-auto aspect-square w-full max-w-[6.75rem] sm:max-w-[7.75rem] rounded-xl overflow-hidden border border-[var(--lilar-border)] bg-white shadow-sm transition-all group-hover:border-[var(--lilar-primary)] group-hover:shadow-md">
+                  <img
+                    src={image}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={onProductImageError}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+                <span className="mt-2 px-0.5 w-full text-center text-[10px] sm:text-[11px] font-medium text-[var(--lilar-text)] leading-snug line-clamp-2 group-hover:text-[var(--lilar-primary)] transition-colors">
+                  {name}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       </section>
