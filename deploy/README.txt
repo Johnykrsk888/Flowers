@@ -64,14 +64,10 @@ PostgreSQL — каталог товаров на сервере
 Проверка:
   sudo -u postgres psql -d flowers -c "\dt"
 
-phpMyAdmin (MariaDB) — только для MySQL/MariaDB
-================================================
-Установка на сервере: bash deploy/install-phpmyadmin.sh (от root; см. репозиторий).
+MariaDB / phpMyAdmin (опционально, не для основного сайта)
+==========================================================
+Удаление с VPS: bash deploy/uninstall-phpmyadmin-mariadb.sh (от root; снимает nginx-location, файлы, MariaDB, данные в /var/lib/mysql, пакеты PHP из install-phpmyadmin.sh).
 
-URL: https://www.boombuket.ru/phpmyadmin/
-Вход: (1) HTTP Basic — логин admin ИЛИ root (оба в htpasswd; см. ensure-phpmyadmin-db-access.sh).
-      (2) Дальше автовход в MariaDB под root (config в phpMyAdmin).
-Пароли на сервере: cat /etc/flowers/phpmyadmin-access.txt
-Скрипт полной настройки: deploy/ensure-phpmyadmin-db-access.sh
+Повторная установка: deploy/install-phpmyadmin.sh
 
-База PostgreSQL «flowers» в phpMyAdmin не видна — для неё нужен pgAdmin или Adminer с драйвером pgsql.
+Каталог товаров на сервере — PostgreSQL (см. выше), не MariaDB.
