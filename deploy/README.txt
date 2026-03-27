@@ -64,10 +64,17 @@ PostgreSQL — каталог товаров на сервере
 Проверка:
   sudo -u postgres psql -d flowers -c "\dt"
 
-MariaDB / phpMyAdmin (опционально, не для основного сайта)
-==========================================================
-Удаление с VPS: bash deploy/uninstall-phpmyadmin-mariadb.sh (от root; снимает nginx-location, файлы, MariaDB, данные в /var/lib/mysql, пакеты PHP из install-phpmyadmin.sh).
+MariaDB / phpMyAdmin (пустая БД для приложения)
+===============================================
+Установка на VPS (MariaDB + phpMyAdmin + пустая БД flowers_mysql + пользователь flowers_mysql):
 
-Повторная установка: deploy/install-phpmyadmin.sh
+  bash deploy/vps-mysql-phpmyadmin.sh
 
-Каталог товаров на сервере — PostgreSQL (см. выше), не MariaDB.
+Строки для .env на ПК: на сервере выполните cat /etc/flowers/mysql-dotenv.txt и вставьте в локальный .env.
+
+URL: https://www.boombuket.ru/phpmyadmin/ — сначала HTTP Basic (admin + PHPMYADMIN_BASIC_PASSWORD), затем форма: root или flowers_mysql с паролями из mysql-dotenv.txt.
+
+Каталог товаров (PostgreSQL) — отдельно, см. раздел выше.
+
+Удаление MariaDB и phpMyAdmin: bash deploy/uninstall-phpmyadmin-mariadb.sh
+Альтернатива без пустой БД: deploy/install-phpmyadmin.sh

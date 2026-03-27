@@ -1,0 +1,11 @@
+# Пример переменных для локального .env (копируйте из вывода на сервере: cat /etc/flowers/mysql-dotenv.txt)
+PHPMYADMIN_URL=https://www.boombuket.ru/phpmyadmin/
+PHPMYADMIN_BASIC_USER=admin
+PHPMYADMIN_BASIC_PASSWORD=
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_DATABASE=flowers_mysql
+MYSQL_USER=flowers_mysql
+MYSQL_PASSWORD=
+PHPMYADMIN_MYSQL_USER=root
+PHPMYADMIN_MYSQL_PASSWORD=
