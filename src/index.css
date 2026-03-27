@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+/* Витрина в духе типичного цветочного магазина (структура как у lilar.ru — без копирования их изображений) */
+:root {
+  --lilar-bg: #f5f3ef;
+  --lilar-card: #ffffff;
+  --lilar-border: #e8e4dc;
+  --lilar-text: #1c1917;
+  --lilar-muted: #78716c;
+  --lilar-primary: #3d6b4a;
+  --lilar-primary-hover: #2f5440;
+  --lilar-topbar: #2a4a3a;
+  --lilar-sale: #c2410c;
+  --lilar-accent: #b8860b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Montserrat", system-ui, sans-serif;
+  color: var(--lilar-text);
+  background: var(--lilar-bg);
+}

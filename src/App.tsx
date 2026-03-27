@@ -1,5 +1,28 @@
 import { useState, useEffect, useMemo, useCallback, type SyntheticEvent } from 'react';
-import { ShoppingCart, Heart, Search, Menu, X, Star, Truck, Flower2, Award, Clock, ChevronRight, Phone, Mail, Share2, Users, Plus, Minus, Trash2, RefreshCw } from 'lucide-react';
+import {
+  ShoppingCart,
+  Heart,
+  Search,
+  Menu,
+  X,
+  Star,
+  Truck,
+  Flower2,
+  Award,
+  Clock,
+  ChevronRight,
+  ChevronDown,
+  Phone,
+  Mail,
+  Share2,
+  Users,
+  Plus,
+  Minus,
+  Trash2,
+  RefreshCw,
+  MapPin,
+} from 'lucide-react';
+import { LilarProductCard } from '@/components/lilar/ProductCard';
 import { fetchCatalogFromDb, postCatalogSync } from '@/catalog/fetchCatalog';
 import { productMatchesCategoryPath } from '@/moysklad/categoryPath';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
@@ -68,7 +91,7 @@ function ReviewAvatar({ name }: { name: string }) {
     .join('');
   return (
     <div
-      className="w-14 h-14 rounded-full border-2 border-rose-200 flex items-center justify-center text-sm font-bold text-white shrink-0 bg-gradient-to-br from-rose-400 to-pink-500"
+      className="w-14 h-14 rounded-full border-2 border-[var(--lilar-primary)]/30 flex items-center justify-center text-sm font-bold text-white shrink-0 bg-gradient-to-br from-[var(--lilar-primary)] to-emerald-800"
       aria-hidden
     >
       {initials}
@@ -212,55 +235,137 @@ export default function App() {
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const hitsProducts = useMemo(() => products.slice(0, 12), [products]);
+  const showcaseCats = useMemo(
+    () => folderPaths.filter(Boolean).slice(0, 4),
+    [folderPaths]
+  );
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  const faqItems = [
+    {
+      q: 'Как оформить заказ?',
+      a: 'Выберите букет в каталоге, добавьте в корзину и нажмите «Оформить заказ» — мы свяжемся для уточнения деталей доставки.',
+    },
+    {
+      q: 'Насколько актуальный каталог?',
+      a: 'Товары и фото подгружаются из МойСклад и периодически синхронизируются с базой на сервере.',
+    },
+    {
+      q: 'Есть ли доставка?',
+      a: 'Условия и стоимость доставки уточняйте по телефону — подберём удобное время.',
+    },
+    {
+      q: 'Можно ли заказать срочно?',
+      a: 'Зависит от загрузки и наличия — позвоните, и мы предложим ближайшее окно.',
+    },
+  ];
+
+  const scrollToCatalog = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    document.getElementById('catalog-full')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50 to-white">
+    <div className="min-h-screen bg-[var(--lilar-bg)]">
+      {/* Верхняя полоса — как у крупных витрин */}
+      <div className="hidden sm:block bg-[var(--lilar-topbar)] text-white text-xs py-2">
+        <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
+          <span>Доставка цветов · заказ онлайн · каталог из базы</span>
+          <div className="flex items-center gap-4">
+            <a href="tel:+78001234567" className="font-semibold tracking-wide">
+              8 800 123-45-67
+            </a>
+            <button
+              type="button"
+              onClick={() => void syncFromMoysklad()}
+              disabled={productsLoading}
+              className="inline-flex items-center gap-1.5 opacity-90 hover:opacity-100 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${productsLoading ? 'animate-spin' : ''}`} />
+              Обновить из МойСклад
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <Flower2 className="w-8 h-8 text-rose-500" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">
+      <header className="sticky top-0 z-50 bg-white border-b border-[var(--lilar-border)] shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center gap-3 lg:gap-6">
+            <a href="#" className="flex items-center gap-2 shrink-0">
+              <Flower2 className="w-9 h-9 text-[var(--lilar-primary)]" />
+              <span className="text-lg sm:text-xl font-bold text-[var(--lilar-text)]">
                 Цветочный Рай
               </span>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <a href="#catalog" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Каталог</a>
-              <a href="#about" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">О нас</a>
-              <a href="#reviews" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Отзывы</a>
-              <a href="#contacts" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Контакты</a>
+            </a>
+            <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-neutral-700">
+              <a href="#catalog-hits" className="hover:text-[var(--lilar-primary)] transition-colors">
+                Хиты
+              </a>
+              <a href="#catalog-full" className="hover:text-[var(--lilar-primary)] transition-colors">
+                Каталог
+              </a>
+              <a href="#about" className="hover:text-[var(--lilar-primary)] transition-colors">
+                О нас
+              </a>
+              <a href="#faq" className="hover:text-[var(--lilar-primary)] transition-colors">
+                Вопросы
+              </a>
+              <a href="#reviews" className="hover:text-[var(--lilar-primary)] transition-colors">
+                Отзывы
+              </a>
+              <a href="#contacts" className="hover:text-[var(--lilar-primary)] transition-colors">
+                Контакты
+              </a>
             </nav>
-
-            {/* Actions */}
-            <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-rose-50 rounded-full transition-colors">
-                <Search className="w-5 h-5 text-gray-600" />
-              </button>
-              <button className="p-2 hover:bg-rose-50 rounded-full transition-colors relative">
-                <Heart className="w-5 h-5 text-gray-600" />
+            <div className="hidden md:flex flex-1 max-w-md mx-2">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+                <input
+                  type="search"
+                  placeholder="Что ищете?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full border border-[var(--lilar-border)] bg-[#fafaf9] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--lilar-primary)]/30"
+                />
+              </div>
+            </div>
+            <a href="tel:+78001234567" className="hidden sm:flex items-center gap-1 text-sm font-semibold text-[var(--lilar-primary)] shrink-0">
+              <Phone className="w-4 h-4" />
+              8 800 123-45-67
+            </a>
+            <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+              <button
+                type="button"
+                className="p-2 rounded-full hover:bg-neutral-100 transition-colors relative"
+                aria-label="Избранное"
+              >
+                <Heart className="w-5 h-5 text-neutral-600" />
                 {favorites.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 bg-[var(--lilar-primary)] text-white text-[10px] rounded-full flex items-center justify-center">
                     {favorites.length}
                   </span>
                 )}
               </button>
               <button
+                type="button"
                 onClick={() => setIsCartOpen(true)}
-                className="p-2 hover:bg-rose-50 rounded-full transition-colors relative"
+                className="p-2 rounded-full hover:bg-neutral-100 transition-colors relative"
+                aria-label="Корзина"
               >
-                <ShoppingCart className="w-5 h-5 text-gray-600" />
+                <ShoppingCart className="w-5 h-5 text-neutral-600" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 bg-[var(--lilar-primary)] text-white text-[10px] rounded-full flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
               </button>
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 hover:bg-rose-50 rounded-full transition-colors"
+                className="lg:hidden p-2 rounded-full hover:bg-neutral-100"
+                aria-label="Меню"
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -268,243 +373,300 @@ export default function App() {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-white border-t">
-            <nav className="flex flex-col p-4 gap-4">
-              <a href="#catalog" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Каталог</a>
-              <a href="#about" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">О нас</a>
-              <a href="#reviews" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Отзывы</a>
-              <a href="#contacts" className="text-gray-700 hover:text-rose-500 transition-colors font-medium">Контакты</a>
+          <div className="lg:hidden border-t border-[var(--lilar-border)] bg-white">
+            <nav className="flex flex-col p-4 gap-3 text-sm font-medium">
+              <a href="#catalog-full" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
+                Каталог
+              </a>
+              <a href="#about" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
+                О нас
+              </a>
+              <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
+                Вопросы
+              </a>
+              <a href="#reviews" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
+                Отзывы
+              </a>
+              <a href="#contacts" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
+                Контакты
+              </a>
             </nav>
           </div>
         )}
       </header>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 bg-rose-100 text-rose-600 px-4 py-2 rounded-full text-sm font-medium">
-                <span className="text-xl">🌷</span>
-                Доставка за 1 час
-              </div>
-              <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                Подарите
-                <span className="bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">
-                  {' '}яркие эмоции{' '}
-                </span>
-                с цветами
-              </h1>
-              <p className="text-lg text-gray-600">
-                Самые свежие цветы для ваших любимых. Собираем уникальные букеты с любовью и заботой.
+      {/* Герой + чипы категорий */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#e8f0eb] via-[#f5f3ef] to-[#ede8e0] border-b border-[var(--lilar-border)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
+            <div className="space-y-6">
+              <p className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--lilar-primary)]">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                Свежие букеты · каталог из базы
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--lilar-text)] leading-tight">
+                Доставка цветов — выберите букет онлайн
+              </h1>
+              <p className="text-[var(--lilar-muted)] text-base max-w-xl">
+                Актуальные позиции и фото из МойСклад. Оформите заказ в корзине — мы свяжемся для уточнения доставки.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href="#catalog"
-                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg shadow-rose-200 hover:shadow-xl hover:shadow-rose-300 transition-all transform hover:-translate-y-1"
+                  href="#catalog-hits"
+                  className="inline-flex items-center justify-center gap-2 bg-[var(--lilar-primary)] text-white px-8 py-3.5 rounded-full font-semibold text-sm hover:bg-[var(--lilar-primary-hover)] transition-colors shadow-md"
                 >
-                  Выбрать букет
-                  <ChevronRight className="w-5 h-5" />
+                  Смотреть хиты
+                  <ChevronRight className="w-4 h-4" />
                 </a>
-                <button className="inline-flex items-center justify-center gap-2 border-2 border-rose-300 text-rose-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-rose-50 transition-all">
-                  <Phone className="w-5 h-5" />
-                  Заказать звонок
-                </button>
-              </div>
-              <div className="flex items-center gap-8 pt-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-rose-500">10+</div>
-                  <div className="text-sm text-gray-500">лет на рынке</div>
-                </div>
-                <div className="w-px h-12 bg-gray-200"></div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-rose-500">5000+</div>
-                  <div className="text-sm text-gray-500">довольных клиентов</div>
-                </div>
-                <div className="w-px h-12 bg-gray-200"></div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-rose-500">4.9</div>
-                  <div className="text-sm text-gray-500">рейтинг</div>
-                </div>
+                <a
+                  href="tel:+78001234567"
+                  className="inline-flex items-center justify-center gap-2 border-2 border-[var(--lilar-primary)] text-[var(--lilar-primary)] px-8 py-3.5 rounded-full font-semibold text-sm hover:bg-white/80 transition-colors"
+                >
+                  <Phone className="w-4 h-4" />
+                  Перезвонить
+                </a>
               </div>
             </div>
             <div className="relative">
-              <div className="absolute -top-10 -left-10 w-72 h-72 bg-rose-200 rounded-full blur-3xl opacity-50"></div>
-              <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-pink-200 rounded-full blur-3xl opacity-50"></div>
+              <div className="absolute -inset-4 bg-[var(--lilar-primary)]/10 rounded-[2rem] blur-2xl" aria-hidden />
               <img
                 src={HERO_IMAGE_URL}
-                alt="Красивый букет цветов"
+                alt="Букет цветов"
                 onError={onHeroImageError}
-                className="relative rounded-3xl shadow-2xl w-full max-w-lg mx-auto transform hover:scale-105 transition-transform duration-500"
+                className="relative rounded-2xl shadow-xl w-full max-w-lg mx-auto object-cover aspect-[4/5] lg:aspect-square"
               />
-              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
-                <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center">
-                  <Truck className="w-6 h-6 text-rose-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900">Бесплатная доставка</div>
-                  <div className="text-sm text-gray-500">от 3000 ₽</div>
-                </div>
-              </div>
             </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+          <p className="text-xs text-[var(--lilar-muted)] mb-2">Категории</p>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin -mx-1 px-1">
+            {categories
+              .filter((c) => c.name !== 'Все')
+              .map((category) => (
+                <button
+                  key={category.name}
+                  type="button"
+                  onClick={() => scrollToCatalog(category.name)}
+                  className="shrink-0 px-4 py-2 rounded-full text-sm font-medium bg-white border border-[var(--lilar-border)] text-[var(--lilar-text)] hover:border-[var(--lilar-primary)] hover:text-[var(--lilar-primary)] transition-colors whitespace-nowrap"
+                >
+                  {category.name}
+                </button>
+              ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="about" className="py-16 bg-white">
+      {/* Преимущества — ряд иконок */}
+      <section id="about" className="py-10 bg-white border-b border-[var(--lilar-border)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Почему выбирают нас</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Мы заботимся о каждом клиенте и гарантируем высокое качество</p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Flower2 className="w-8 h-8 text-rose-500" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Truck, t: 'Доставка', d: 'Уточняйте время с оператором' },
+              { icon: Flower2, t: 'Свежесть', d: 'Каталог из МойСклад и БД' },
+              { icon: Award, t: 'Качество', d: 'Фото и описания в карточке' },
+              { icon: Clock, t: '24/7', d: 'Заказ на сайте в любое время' },
+            ].map(({ icon: Icon, t, d }) => (
+              <div key={t} className="text-center p-4 rounded-xl bg-[var(--lilar-bg)] border border-[var(--lilar-border)]">
+                <div className="w-12 h-12 mx-auto rounded-full bg-[var(--lilar-primary)]/10 flex items-center justify-center mb-3">
+                  <Icon className="w-6 h-6 text-[var(--lilar-primary)]" />
+                </div>
+                <h3 className="font-bold text-[var(--lilar-text)] text-sm">{t}</h3>
+                <p className="text-xs text-[var(--lilar-muted)] mt-1">{d}</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Свежие цветы</h3>
-              <p className="text-gray-600">Ежедневные поставки свежих цветов из лучших питомников</p>
-            </div>
-            <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Award className="w-8 h-8 text-pink-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Качество</h3>
-              <p className="text-gray-600">Каждый букет собирается профессиональными флористами</p>
-            </div>
-            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Truck className="w-8 h-8 text-purple-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Быстрая доставка</h3>
-              <p className="text-gray-600">Доставим ваш заказ за 1 час по всему городу</p>
-            </div>
-            <div className="bg-gradient-to-br from-blue-50 to-green-50 rounded-2xl p-8 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Clock className="w-8 h-8 text-blue-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Работаем 24/7</h3>
-              <p className="text-gray-600">Всегда готовы помочь с выбором букета в любое время</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Catalog Section */}
-      <section id="catalog" className="py-16">
+      {/* Хиты продаж */}
+      <section id="catalog-hits" className="py-12 bg-[var(--lilar-bg)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 max-w-5xl mx-auto text-center sm:text-left">
-            <div className="sm:flex-1">
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Хит продаж</h2>
-              <p className="text-gray-600 max-w-2xl mx-auto sm:mx-0">Самые популярные букеты этого сезона</p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-[var(--lilar-text)]">Хиты продаж</h2>
+              <p className="text-sm text-[var(--lilar-muted)] mt-1">Популярные позиции из каталога</p>
             </div>
-            <button
-              type="button"
-              onClick={() => void syncFromMoysklad()}
-              disabled={productsLoading}
-              className="inline-flex items-center justify-center gap-2 self-center sm:self-auto px-5 py-2.5 rounded-full border-2 border-rose-200 bg-white text-rose-600 font-medium hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-            >
-              <RefreshCw className={`w-5 h-5 ${productsLoading ? 'animate-spin' : ''}`} aria-hidden />
-              Синхронизировать МойСклад → БД
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void syncFromMoysklad()}
+                disabled={productsLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--lilar-border)] bg-white text-sm font-medium text-[var(--lilar-primary)] hover:bg-[var(--lilar-bg)] disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${productsLoading ? 'animate-spin' : ''}`} />
+                Синхронизация МойСклад → БД
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToCatalog('Все')}
+                className="text-sm font-medium text-[var(--lilar-primary)] underline underline-offset-2"
+              >
+                Весь каталог
+              </button>
+            </div>
           </div>
+          {productsLoading && (
+            <p className="text-center text-[var(--lilar-muted)] py-12">Загрузка каталога из базы…</p>
+          )}
+          {productsError && (
+            <div className="max-w-2xl mx-auto rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {productsError}
+            </div>
+          )}
+          {!productsLoading && !productsError && hitsProducts.length === 0 && (
+            <p className="text-center text-[var(--lilar-muted)] py-12">Пока нет товаров в базе.</p>
+          )}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {hitsProducts.map((product) => (
+              <LilarProductCard
+                key={product.id}
+                product={product}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
+                onAddToCart={addToCart}
+                onImageError={onProductImageError}
+                compact
+              />
+            ))}
+          </div>
+        </div>
+      </section>
 
-          {/* Search & Filter */}
+      {/* Ряды по категориям */}
+      {showcaseCats.map((cat) => {
+        const row = products
+          .filter((p) => productMatchesCategoryPath(p.category, cat))
+          .slice(0, 8);
+        if (row.length === 0) return null;
+        return (
+          <section
+            key={cat}
+            className="py-10 bg-white border-b border-[var(--lilar-border)]"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-end justify-between gap-4 mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-[var(--lilar-text)]">{cat}</h2>
+                <button
+                  type="button"
+                  onClick={() => scrollToCatalog(cat)}
+                  className="text-sm font-semibold text-[var(--lilar-primary)] hover:underline shrink-0"
+                >
+                  Смотреть все
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {row.map((product) => (
+                  <LilarProductCard
+                    key={product.id}
+                    product={product}
+                    favorites={favorites}
+                    onToggleFavorite={toggleFavorite}
+                    onAddToCart={addToCart}
+                    onImageError={onProductImageError}
+                    compact
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })}
+
+      {/* Полный каталог: поиск + фильтры */}
+      <section id="catalog-full" className="py-12 bg-[var(--lilar-bg)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[var(--lilar-text)] mb-2">Каталог</h2>
+          <p className="text-sm text-[var(--lilar-muted)] mb-8">
+            Поиск и фильтр по группам из МойСклад
+          </p>
+
           <div className="mb-8 space-y-6">
-            {/* Search */}
-            <div className="max-w-md mx-auto">
+            <div className="max-w-md md:hidden">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
                 <input
                   type="text"
                   placeholder="Поиск букета..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-full focus:border-rose-400 focus:outline-none transition-colors"
+                  className="w-full pl-12 pr-4 py-3 border border-[var(--lilar-border)] rounded-full bg-white focus:outline-none focus:ring-2 focus:ring-[var(--lilar-primary)]/25"
                 />
               </div>
             </div>
 
-            {/* Categories */}
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
                 <button
                   key={category.name}
                   type="button"
                   title={category.name}
                   onClick={() => setSelectedCategory(category.name)}
-                  className={`max-w-[min(100%,20rem)] px-4 py-3 rounded-full font-medium transition-all text-left ${
+                  className={`max-w-[min(100%,20rem)] px-4 py-2.5 rounded-full text-sm font-medium transition-all text-left ${
                     selectedCategory === category.name
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-200'
-                      : 'bg-white text-gray-700 hover:bg-rose-50 border border-gray-200'
+                      ? 'bg-[var(--lilar-primary)] text-white shadow-md'
+                      : 'bg-white text-[var(--lilar-text)] border border-[var(--lilar-border)] hover:border-[var(--lilar-primary)]'
                   }`}
                 >
-                  <span className="mr-2">{category.icon}</span>
+                  <span className="mr-1.5">{category.icon}</span>
                   <span className="align-middle line-clamp-2 break-words">{category.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Products Grid */}
           {productsLoading && (
-            <p className="text-center text-gray-600 py-12">Загрузка каталога из базы…</p>
-          )}
-          {productsError && (
-            <div className="max-w-2xl mx-auto rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {productsError}
-            </div>
+            <p className="text-center text-[var(--lilar-muted)] py-12">Загрузка каталога из базы…</p>
           )}
           {!productsLoading && !productsError && filteredProducts.length === 0 && (
-            <p className="text-center text-gray-500 py-12">Нет товаров по выбранным условиям.</p>
+            <p className="text-center text-[var(--lilar-muted)] py-12">Нет товаров по выбранным условиям.</p>
           )}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="bg-white rounded-3xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 group"
+                className="bg-[var(--lilar-card)] rounded-xl border border-[var(--lilar-border)] shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="relative overflow-hidden">
+                <div className="relative aspect-square bg-[#f0ebe4] overflow-hidden">
                   <img
                     src={product.image || PRODUCT_IMAGE_PLACEHOLDER}
                     alt={product.name}
                     onError={onProductImageError}
                     decoding="async"
-                    className="w-full h-64 min-h-[16rem] object-cover object-center bg-rose-50 group-hover:scale-[1.02] transition-transform duration-500"
+                    className="w-full h-full object-cover object-center"
                   />
                   <button
+                    type="button"
                     onClick={() => toggleFavorite(product.id)}
-                    className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                    className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow"
                   >
                     <Heart
-                      className={`w-5 h-5 ${
+                      className={`w-4 h-4 ${
                         favorites.includes(product.id)
-                          ? 'fill-rose-500 text-rose-500'
-                          : 'text-gray-400'
+                          ? 'fill-[var(--lilar-primary)] text-[var(--lilar-primary)]'
+                          : 'text-neutral-400'
                       }`}
                     />
                   </button>
                   {product.oldPrice && product.oldPrice > product.price && (
-                    <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    <div className="absolute top-2 left-2 bg-[var(--lilar-sale)] text-white px-2 py-0.5 rounded text-xs font-bold">
                       -{Math.round((1 - product.price / product.oldPrice) * 100)}%
                     </div>
                   )}
                 </div>
-                <div className="p-6">
-                  <div className="flex items-center gap-1 mb-2 flex-wrap">
+                <div className="p-4">
+                  <div className="flex items-center gap-1 mb-1 flex-wrap">
                     {product.rating > 0 ? (
                       <>
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium text-gray-600">{product.rating}</span>
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span className="text-xs text-[var(--lilar-muted)]">{product.rating}</span>
                       </>
                     ) : null}
-                    <span className="text-xs text-gray-400 ml-1">({product.category})</span>
+                    <span className="text-xs text-[var(--lilar-muted)]">({product.category})</span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{product.name}</h3>
-                  <div className="text-xs text-gray-500 space-y-0.5 mb-2">
+                  <h3 className="font-bold text-[var(--lilar-text)] text-sm mb-2 line-clamp-2">{product.name}</h3>
+                  <div className="text-[11px] text-[var(--lilar-muted)] space-y-0.5 mb-2">
                     {product.code != null && product.code !== '' && (
                       <div>Код: <span className="font-mono">{product.code}</span></div>
                     )}
@@ -521,9 +683,9 @@ export default function App() {
                       <div>Вес: {product.weightKg < 1 ? `${Math.round(product.weightKg * 1000)} г` : `${product.weightKg.toFixed(2)} кг`}</div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 mb-3 line-clamp-3">{product.description}</p>
+                  <p className="text-xs text-[var(--lilar-muted)] mb-2 line-clamp-2">{product.description}</p>
                   {product.salePricesLabels.length > 0 && (
-                    <ul className="text-xs text-gray-600 mb-3 space-y-0.5">
+                    <ul className="text-[11px] text-[var(--lilar-muted)] mb-2 space-y-0.5">
                       {product.salePricesLabels.map((sp, i) => (
                         <li key={i} className="flex justify-between gap-2">
                           <span>{sp.label}</span>
@@ -532,15 +694,15 @@ export default function App() {
                       ))}
                     </ul>
                   )}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--lilar-border)]">
                     <div>
-                      <span className="text-2xl font-bold text-rose-500">
+                      <span className="text-lg font-bold text-[var(--lilar-text)]">
                         {product.price > 0
                           ? `${product.price.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₽`
                           : '—'}
                       </span>
                       {product.oldPrice != null && product.oldPrice > product.price && (
-                        <span className="text-sm text-gray-400 line-through ml-2">
+                        <span className="text-xs text-[var(--lilar-muted)] line-through ml-2">
                           {product.oldPrice.toLocaleString('ru-RU')} ₽
                         </span>
                       )}
@@ -549,9 +711,9 @@ export default function App() {
                       type="button"
                       disabled={product.price <= 0}
                       onClick={() => addToCart(product)}
-                      className="w-12 h-12 shrink-0 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full flex items-center justify-center hover:shadow-lg hover:shadow-rose-200 transition-all transform hover:scale-110 disabled:opacity-40 disabled:pointer-events-none"
+                      className="w-10 h-10 shrink-0 bg-[var(--lilar-primary)] text-white rounded-full flex items-center justify-center hover:bg-[var(--lilar-primary-hover)] disabled:opacity-40 transition-colors"
                     >
-                      <Plus className="w-6 h-6" />
+                      <Plus className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -561,62 +723,92 @@ export default function App() {
         </div>
       </section>
 
-      {/* Reviews Section */}
-      <section id="reviews" className="py-16 bg-gradient-to-br from-rose-50 to-pink-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Отзывы клиентов</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Что говорят о нас наши покупатели</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {reviews.map((review) => (
-              <div key={review.id} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="flex items-center gap-4 mb-6">
-                  <ReviewAvatar name={review.name} />
-                  <div>
-                    <div className="font-bold text-gray-900">{review.name}</div>
-                    <div className="text-sm text-gray-500">{review.date}</div>
+      {/* FAQ */}
+      <section id="faq" className="py-12 bg-white border-t border-[var(--lilar-border)]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-[var(--lilar-text)] text-center mb-8">Частые вопросы</h2>
+          <div className="space-y-2">
+            {faqItems.map((item, i) => (
+              <div
+                key={item.q}
+                className="border border-[var(--lilar-border)] rounded-xl overflow-hidden bg-[var(--lilar-bg)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between gap-4 text-left px-4 py-3 font-semibold text-[var(--lilar-text)] text-sm sm:text-base"
+                >
+                  {item.q}
+                  <ChevronDown
+                    className={`w-5 h-5 shrink-0 text-[var(--lilar-primary)] transition-transform ${openFaq === i ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {openFaq === i && (
+                  <div className="px-4 pb-4 text-sm text-[var(--lilar-muted)] border-t border-[var(--lilar-border)] pt-3">
+                    {item.a}
                   </div>
-                </div>
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${
-                        i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-gray-600 leading-relaxed">{review.text}</p>
+                )}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16">
+      {/* Отзывы */}
+      <section id="reviews" className="py-14 bg-[var(--lilar-bg)] border-t border-[var(--lilar-border)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-rose-500 to-pink-500 rounded-3xl p-12 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10">
-              <div className="absolute top-10 left-10 text-9xl">🌸</div>
-              <div className="absolute bottom-10 right-10 text-9xl">🌷</div>
-              <div className="absolute top-1/2 left-1/4 text-7xl">🌺</div>
-            </div>
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold text-[var(--lilar-text)] mb-2">Отзывы клиентов</h2>
+            <p className="text-sm text-[var(--lilar-muted)]">Что говорят о нас покупатели</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {reviews.map((review) => (
+              <div
+                key={review.id}
+                className="bg-white rounded-xl p-6 border border-[var(--lilar-border)] shadow-sm"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <ReviewAvatar name={review.name} />
+                  <div>
+                    <div className="font-bold text-[var(--lilar-text)]">{review.name}</div>
+                    <div className="text-xs text-[var(--lilar-muted)]">{review.date}</div>
+                  </div>
+                </div>
+                <div className="flex gap-0.5 mb-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-neutral-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-sm text-[var(--lilar-muted)] leading-relaxed">{review.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-[var(--lilar-primary)] p-8 sm:p-12 text-center relative overflow-hidden">
+            <div className="absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_30%_20%,#fff_0%,transparent_50%)]" />
             <div className="relative z-10">
-              <h2 className="text-3xl lg:text-5xl font-bold text-white mb-6">
+              <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4">
                 Готовы порадовать близких?
               </h2>
-              <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
-                Закажите букет прямо сейчас и получите скидку 15% на первый заказ!
+              <p className="text-white/90 text-sm sm:text-base mb-8 max-w-xl mx-auto">
+                Выберите букет в каталоге, добавьте в корзину — мы свяжемся для уточнения деталей.
               </p>
               <a
-                href="#catalog"
-                className="inline-flex items-center gap-2 bg-white text-rose-500 px-10 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1"
+                href="#catalog-full"
+                className="inline-flex items-center gap-2 bg-white text-[var(--lilar-primary)] px-8 py-3.5 rounded-full font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transition-shadow"
               >
-                Заказать букет
-                <ChevronRight className="w-6 h-6" />
+                Перейти в каталог
+                <ChevronRight className="w-5 h-5" />
               </a>
             </div>
           </div>
@@ -624,140 +816,148 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <footer id="contacts" className="bg-gray-900 text-white py-16">
+      <footer id="contacts" className="bg-[#1c1917] text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
             <div>
-              <div className="flex items-center gap-2 mb-6">
-                <Flower2 className="w-8 h-8 text-rose-400" />
-                <span className="text-2xl font-bold">Цветочный Рай</span>
+              <div className="flex items-center gap-2 mb-4">
+                <Flower2 className="w-8 h-8 text-emerald-400" />
+                <span className="text-xl font-bold">Цветочный Рай</span>
               </div>
-              <p className="text-gray-400 mb-6">
-                Ваш надежный партнер в мире цветов. Доставляем радость каждый день!
+              <p className="text-neutral-400 text-sm mb-4">
+                Интернет-магазин цветов: каталог из базы, оплата и доставка по договорённости.
               </p>
-              <div className="flex gap-4">
-                <a href="#" className="w-10 h-10 bg-gray-800 hover:bg-rose-500 rounded-full flex items-center justify-center transition-colors">
-                  <Share2 className="w-5 h-5" />
+              <div className="flex gap-3">
+                <a href="#" className="w-9 h-9 bg-neutral-800 hover:bg-[var(--lilar-primary)] rounded-full flex items-center justify-center transition-colors" aria-label="Соцсеть">
+                  <Share2 className="w-4 h-4" />
                 </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 hover:bg-rose-500 rounded-full flex items-center justify-center transition-colors">
-                  <Users className="w-5 h-5" />
+                <a href="#" className="w-9 h-9 bg-neutral-800 hover:bg-[var(--lilar-primary)] rounded-full flex items-center justify-center transition-colors" aria-label="Соцсеть">
+                  <Users className="w-4 h-4" />
                 </a>
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-bold mb-6">Навигация</h3>
-              <ul className="space-y-3">
-                <li><a href="#catalog" className="text-gray-400 hover:text-rose-400 transition-colors">Каталог</a></li>
-                <li><a href="#about" className="text-gray-400 hover:text-rose-400 transition-colors">О нас</a></li>
-                <li><a href="#reviews" className="text-gray-400 hover:text-rose-400 transition-colors">Отзывы</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Доставка и оплата</a></li>
+              <h3 className="text-sm font-bold mb-4 uppercase tracking-wide text-neutral-300">Навигация</h3>
+              <ul className="space-y-2 text-sm text-neutral-400">
+                <li><a href="#catalog-full" className="hover:text-white transition-colors">Каталог</a></li>
+                <li><a href="#about" className="hover:text-white transition-colors">О нас</a></li>
+                <li><a href="#faq" className="hover:text-white transition-colors">Вопросы</a></li>
+                <li><a href="#reviews" className="hover:text-white transition-colors">Отзывы</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-bold mb-6">Каталог</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Розы</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Пионы</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Хризантемы</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-rose-400 transition-colors">Композиции</a></li>
+              <h3 className="text-sm font-bold mb-4 uppercase tracking-wide text-neutral-300">Категории</h3>
+              <ul className="space-y-2 text-sm text-neutral-400">
+                {folderPaths.slice(0, 6).map((f) => (
+                  <li key={f}>
+                    <button type="button" onClick={() => scrollToCatalog(f)} className="hover:text-white text-left transition-colors">
+                      {f}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-bold mb-6">Контакты</h3>
-              <ul className="space-y-4">
-                <li className="flex items-center gap-3 text-gray-400">
-                  <Phone className="w-5 h-5 text-rose-400" />
-                  +7 (999) 123-45-67
+              <h3 className="text-sm font-bold mb-4 uppercase tracking-wide text-neutral-300">Контакты</h3>
+              <ul className="space-y-3 text-sm text-neutral-400">
+                <li className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <a href="tel:+78001234567" className="hover:text-white">8 800 123-45-67</a>
                 </li>
-                <li className="flex items-center gap-3 text-gray-400">
-                  <Mail className="w-5 h-5 text-rose-400" />
-                  info@flowers.ru
+                <li className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <a href="mailto:info@flowers.ru" className="hover:text-white">info@flowers.ru</a>
                 </li>
-                <li className="text-gray-400">
-                  📍 Москва, ул. Цветочная, д. 1
+                <li className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Москва, доставка по договорённости</span>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">
-            <p>© 2024 Цветочный Рай. Все права защищены.</p>
+          <div className="border-t border-neutral-800 mt-10 pt-8 text-center text-xs text-neutral-500">
+            <p>© {new Date().getFullYear()} Цветочный Рай. Информация на сайте не является публичной офертой.</p>
           </div>
         </div>
       </footer>
 
-      {/* Cart Sidebar */}
+      {/* Корзина */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60]">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/45"
             onClick={() => setIsCartOpen(false)}
-          ></div>
-          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl">
+            role="presentation"
+          />
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-[var(--lilar-card)] shadow-2xl border-l border-[var(--lilar-border)]">
             <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <ShoppingCart className="w-6 h-6 text-rose-500" />
+              <div className="flex items-center justify-between p-5 border-b border-[var(--lilar-border)]">
+                <h3 className="text-lg font-bold text-[var(--lilar-text)] flex items-center gap-2">
+                  <ShoppingCart className="w-6 h-6 text-[var(--lilar-primary)]" />
                   Корзина
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setIsCartOpen(false)}
-                  className="w-10 h-10 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors"
+                  className="w-10 h-10 hover:bg-[var(--lilar-bg)] rounded-full flex items-center justify-center transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-5">
                 {cart.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <ShoppingCart className="w-12 h-12 text-rose-300" />
+                    <div className="w-20 h-20 bg-[var(--lilar-bg)] rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ShoppingCart className="w-10 h-10 text-[var(--lilar-primary)]/40" />
                     </div>
-                    <h4 className="text-xl font-semibold text-gray-900 mb-2">Корзина пуста</h4>
-                    <p className="text-gray-500 mb-6">Добавьте красивые цветы в корзину</p>
+                    <h4 className="font-semibold text-[var(--lilar-text)] mb-2">Корзина пуста</h4>
+                    <p className="text-sm text-[var(--lilar-muted)] mb-4">Добавьте букет из каталога</p>
                     <button
+                      type="button"
                       onClick={() => setIsCartOpen(false)}
-                      className="text-rose-500 font-medium hover:text-rose-600"
+                      className="text-[var(--lilar-primary)] font-semibold text-sm hover:underline"
                     >
                       Перейти в каталог →
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {cart.map((item) => (
-                      <div key={item.id} className="flex gap-4 bg-gray-50 rounded-2xl p-4">
+                      <div key={item.id} className="flex gap-3 bg-[var(--lilar-bg)] rounded-xl p-3 border border-[var(--lilar-border)]">
                         <img
                           src={item.image || PRODUCT_IMAGE_PLACEHOLDER}
                           alt={item.name}
                           onError={onProductImageError}
-                          className="w-20 h-20 min-h-[5rem] object-cover rounded-xl bg-rose-50"
+                          className="w-[72px] h-[72px] min-h-[4.5rem] object-cover rounded-lg bg-white"
                         />
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                          <p className="text-rose-500 font-bold">{item.price} ₽</p>
-                          <div className="flex items-center gap-3 mt-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-[var(--lilar-text)] text-sm line-clamp-2">{item.name}</h4>
+                          <p className="text-[var(--lilar-primary)] font-bold text-sm">{item.price} ₽</p>
+                          <div className="flex items-center gap-2 mt-2">
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.id, -1)}
-                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition-colors"
+                              className="w-8 h-8 bg-white border border-[var(--lilar-border)] rounded-full flex items-center justify-center hover:bg-white/80"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
-                            <span className="font-semibold">{item.quantity}</span>
+                            <span className="font-semibold text-sm w-6 text-center">{item.quantity}</span>
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.id, 1)}
-                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition-colors"
+                              className="w-8 h-8 bg-white border border-[var(--lilar-border)] rounded-full flex items-center justify-center hover:bg-white/80"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => removeFromCart(item.id)}
-                          className="w-10 h-10 hover:bg-red-50 rounded-full flex items-center justify-center self-start transition-colors"
+                          className="w-9 h-9 hover:bg-red-50 rounded-full flex items-center justify-center self-start shrink-0"
                         >
-                          <Trash2 className="w-5 h-5 text-red-400" />
+                          <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
                       </div>
                     ))}
@@ -765,19 +965,21 @@ export default function App() {
                 )}
               </div>
 
-              {/* Footer */}
               {cart.length > 0 && (
-                <div className="p-6 border-t bg-gray-50">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="text-gray-600">Итого:</span>
-                    <span className="text-2xl font-bold text-rose-500">{cartTotal} ₽</span>
+                <div className="p-5 border-t border-[var(--lilar-border)] bg-[var(--lilar-bg)]">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[var(--lilar-muted)]">Итого:</span>
+                    <span className="text-xl font-bold text-[var(--lilar-text)]">{cartTotal.toLocaleString('ru-RU')} ₽</span>
                   </div>
-                  <button className="w-full bg-gradient-to-r from-rose-500 to-pink-500 text-white py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all">
+                  <button
+                    type="button"
+                    className="w-full bg-[var(--lilar-primary)] text-white py-3.5 rounded-full font-bold text-sm hover:bg-[var(--lilar-primary-hover)] transition-colors shadow-md"
+                  >
                     Оформить заказ
                   </button>
-                  <p className="text-center text-gray-500 text-sm mt-4">
-                    <Truck className="w-4 h-4 inline mr-1" />
-                    Бесплатная доставка от 3000 ₽
+                  <p className="text-center text-[var(--lilar-muted)] text-xs mt-3">
+                    <Truck className="w-3.5 h-3.5 inline mr-1" />
+                    Условия доставки уточняйте у оператора
                   </p>
                 </div>
               )}
