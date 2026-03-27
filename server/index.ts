@@ -5,6 +5,7 @@ import express from "express";
 import { createPool, ensureUploadsDir, initSchema } from "./db.js";
 import { syncCatalog } from "./syncCatalog.js";
 import type { CatalogProduct } from "../src/moysklad/mapProduct.js";
+import { PRODUCT_IMAGE_PLACEHOLDER } from "../src/moysklad/placeholderImage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,12 +23,14 @@ function rowToProduct(r: Record<string, unknown>): CatalogProduct {
   }
   const price = Number(r.price);
   const oldP = r.old_price != null ? Number(r.old_price) : undefined;
+  const img = String(r.image_path || "");
   return {
     id: String(r.ms_id),
     name: String(r.name),
     price,
     oldPrice: oldP != null && !Number.isNaN(oldP) ? oldP : undefined,
-    image: String(r.image_path || ""),
+    image: img,
+    images: img ? [img] : [PRODUCT_IMAGE_PLACEHOLDER],
     rating: Number(r.rating) || 0,
     category: String(r.category || ""),
     description: String(r.description || ""),

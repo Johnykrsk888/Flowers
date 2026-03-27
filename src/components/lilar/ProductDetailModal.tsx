@@ -2,6 +2,8 @@ import { useEffect, useState, type SyntheticEvent } from 'react';
 import { X, Heart, Minus, Plus, Phone, Check, Package } from 'lucide-react';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
 import { PRODUCT_IMAGE_PLACEHOLDER } from '@/moysklad/placeholderImage';
+import { ImageLightbox } from './ImageLightbox';
+import { galleryUrls } from './productGallery';
 
 type TabId = 'desc' | 'spec' | 'care';
 
@@ -33,11 +35,19 @@ export function ProductDetailModal({
 }: Props) {
   const [tab, setTab] = useState<TabId>('desc');
   const [qty, setQty] = useState(1);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const images = product ? galleryUrls(product) : [];
+  const mainSrc = images[activeImageIdx] ?? images[0];
+  const showThumbs = images.length > 1;
 
   useEffect(() => {
     if (open && product) {
       setQty(1);
       setTab('desc');
+      setActiveImageIdx(0);
+      setLightboxOpen(false);
     }
   }, [open, product?.id]);
 
@@ -53,11 +63,16 @@ export function ProductDetailModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (lightboxOpen) {
+        setLightboxOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, lightboxOpen]);
 
   if (!open || !product) return null;
 
@@ -99,18 +114,51 @@ export function ProductDetailModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="grid gap-6 p-4 sm:gap-8 sm:p-6 lg:grid-cols-2 lg:items-start">
-            <div className="relative aspect-square w-full max-w-lg mx-auto overflow-hidden rounded-xl bg-[#f0ebe4] lg:max-w-none">
-              <img
-                src={product.image || PRODUCT_IMAGE_PLACEHOLDER}
-                alt=""
-                className="h-full w-full object-cover object-center"
-                onError={onImageError}
-                decoding="async"
-              />
-              {discount > 0 && (
-                <span className="absolute left-3 top-3 rounded bg-[var(--lilar-sale)] px-2 py-1 text-xs font-bold text-white">
-                  -{discount}%
-                </span>
+            <div className="flex w-full max-w-lg flex-col gap-2 lg:max-w-none">
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#f0ebe4]">
+                <button
+                  type="button"
+                  className="absolute inset-0 z-[1] cursor-zoom-in"
+                  aria-label="Открыть фото на весь экран"
+                  onClick={() => setLightboxOpen(true)}
+                />
+                <img
+                  src={mainSrc || PRODUCT_IMAGE_PLACEHOLDER}
+                  alt=""
+                  className="pointer-events-none h-full w-full object-cover object-center"
+                  onError={onImageError}
+                  decoding="async"
+                />
+                {discount > 0 && (
+                  <span className="absolute left-3 top-3 z-[2] rounded bg-[var(--lilar-sale)] px-2 py-1 text-xs font-bold text-white">
+                    -{discount}%
+                  </span>
+                )}
+              </div>
+              {showThumbs && (
+                <div className="flex flex-wrap gap-2">
+                  {images.map((src, i) => (
+                    <button
+                      key={`${src}-${i}`}
+                      type="button"
+                      onClick={() => setActiveImageIdx(i)}
+                      className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 bg-white sm:h-16 sm:w-16 ${
+                        i === activeImageIdx
+                          ? 'border-[var(--lilar-primary)] ring-1 ring-[var(--lilar-primary)]'
+                          : 'border-[var(--lilar-border)] opacity-80 hover:opacity-100'
+                      }`}
+                      aria-label={`Фото ${i + 1}`}
+                    >
+                      <img
+                        src={src}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={onImageError}
+                        decoding="async"
+                      />
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -313,6 +361,14 @@ export function ProductDetailModal({
           </div>
         </div>
       </div>
+
+      <ImageLightbox
+        open={lightboxOpen}
+        src={mainSrc || PRODUCT_IMAGE_PLACEHOLDER}
+        alt={product.name}
+        onClose={() => setLightboxOpen(false)}
+        suppressEscape
+      />
     </div>
   );
 }

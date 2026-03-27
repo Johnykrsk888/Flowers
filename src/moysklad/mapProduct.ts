@@ -51,30 +51,49 @@ function imageUrlForDisplay(raw: string): string {
   return mediaUrlForApp(normalizeMoyskladImageDownloadUrl(raw));
 }
 
+/** Одна строка images.rows — тот же приоритет URL, что и раньше в pickImageUrl. */
+function pickImageUrlForRow(row: MsImageRow): string | null {
+  const candidates = [
+    row.downloadHref,
+    row.meta?.downloadHref,
+    row.medium?.downloadHref,
+    row.medium?.href,
+    row.miniature?.downloadHref,
+    row.miniature?.href,
+    row.tiny?.downloadHref,
+    row.tiny?.href,
+    row.meta?.href,
+  ];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    return imageUrlForDisplay(raw);
+  }
+  for (const raw of collectImageUrlsDeep(row)) {
+    return imageUrlForDisplay(raw);
+  }
+  return null;
+}
+
+function pickAllImageUrls(p: MsProduct): string[] {
+  const rows = p.images?.rows;
+  if (!rows?.length) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const row of rows) {
+    const u = pickImageUrlForRow(row);
+    if (u && !seen.has(u)) {
+      seen.add(u);
+      out.push(u);
+    }
+  }
+  return out;
+}
+
 function pickImageUrl(p: MsProduct): string {
   const rows = p.images?.rows;
   if (rows?.length) {
-    const first = rows[0];
-    /** От крупного к мелкому — иначе tiny/миниатюра растягиваются на h-64 и размываются. */
-    const candidates = [
-      first.downloadHref,
-      first.meta?.downloadHref,
-      first.medium?.downloadHref,
-      first.medium?.href,
-      first.miniature?.downloadHref,
-      first.miniature?.href,
-      first.tiny?.downloadHref,
-      first.tiny?.href,
-      first.meta?.href,
-    ];
-    for (const raw of candidates) {
-      if (!raw) continue;
-      /** Не добавлять query к URL: у storage подпись (temp_url_sig) ломается. */
-      return imageUrlForDisplay(raw);
-    }
-    for (const raw of collectImageUrlsDeep(first)) {
-      return imageUrlForDisplay(raw);
-    }
+    const u = pickImageUrlForRow(rows[0]);
+    if (u) return u;
   }
   return PRODUCT_IMAGE_PLACEHOLDER;
 }
@@ -139,7 +158,10 @@ export interface CatalogProduct {
   name: string;
   price: number;
   oldPrice?: number;
+  /** Главное фото (первое из галереи или заглушка). */
   image: string;
+  /** Все фото товара из МойСклад (порядок как в карточке). */
+  images: string[];
   rating: number;
   category: string;
   description: string;
@@ -180,12 +202,16 @@ export function mapMsProduct(
     })) ?? [];
 
   const price = mainPriceRub(p);
+  const fromRows = pickAllImageUrls(p);
+  const image = fromRows[0] ?? pickImageUrl(p);
+  const images = fromRows.length > 0 ? fromRows : [image];
 
   return {
     id: p.id,
     name: p.name,
     price,
-    image: pickImageUrl(p),
+    image,
+    images,
     rating: 0,
     category,
     description: (p.description || "").trim() || "Товар из каталога МойСклад",

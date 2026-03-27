@@ -1,7 +1,8 @@
 import { Heart, Plus } from "lucide-react";
-import type { SyntheticEvent } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import type { CatalogProduct } from "@/moysklad/mapProduct";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "@/moysklad/placeholderImage";
+import { galleryUrls } from "./productGallery";
 
 type Props = {
   product: CatalogProduct;
@@ -9,7 +10,7 @@ type Props = {
   onToggleFavorite: (id: string) => void;
   onAddToCart: (p: CatalogProduct) => void;
   onImageError: (e: SyntheticEvent<HTMLImageElement>) => void;
-  /** Клик по миниатюре — открыть карточку товара */
+  /** Клик по фото — открыть карточку товара (без полноэкранного фото; увеличение только в модалке) */
   onOpenDetail?: (p: CatalogProduct) => void;
   /** Компактная сетка как на витрине-референсе */
   compact?: boolean;
@@ -24,6 +25,16 @@ export function LilarProductCard({
   onOpenDetail,
   compact = false,
 }: Props) {
+  const images = galleryUrls(product);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [product.id]);
+
+  const mainSrc = images[activeIdx] ?? images[0];
+  const showThumbs = images.length > 1;
+
   const discount =
     product.oldPrice != null && product.oldPrice > product.price
       ? Math.round((1 - product.price / product.oldPrice) * 100)
@@ -33,44 +44,92 @@ export function LilarProductCard({
     <article
       className={`group flex flex-col bg-[var(--lilar-card)] rounded-lg border border-[var(--lilar-border)] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${compact ? "" : ""}`}
     >
-      <div className="relative aspect-square bg-[#f0ebe4] overflow-hidden">
-        <img
-          src={product.image || PRODUCT_IMAGE_PLACEHOLDER}
-          alt={product.name}
-          onError={onImageError}
-          decoding="async"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-        {onOpenDetail && (
+      <div className="relative flex flex-col bg-[#f0ebe4] overflow-hidden">
+        <div className="relative aspect-square w-full overflow-hidden">
+          {onOpenDetail && (
+            <button
+              type="button"
+              className="absolute inset-0 z-[1] cursor-pointer bg-transparent"
+              aria-label="Открыть карточку товара"
+              onClick={() => onOpenDetail(product)}
+            />
+          )}
+          <img
+            src={mainSrc || PRODUCT_IMAGE_PLACEHOLDER}
+            alt={product.name}
+            onError={onImageError}
+            decoding="async"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+          {discount > 0 && (
+            <span className="absolute top-2 left-2 z-20 rounded bg-[var(--lilar-sale)] text-white text-xs font-bold px-2 py-0.5">
+              -{discount}%
+            </span>
+          )}
           <button
             type="button"
-            className="absolute inset-0 z-[1] cursor-pointer bg-transparent"
-            aria-label="Открыть карточку товара"
-            onClick={() => onOpenDetail(product)}
-          />
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(product.id);
+            }}
+            className="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow hover:scale-105 transition-transform"
+            aria-label="В избранное"
+          >
+            <Heart
+              className={`w-4 h-4 ${
+                favorites.includes(product.id)
+                  ? "fill-[var(--lilar-primary)] text-[var(--lilar-primary)]"
+                  : "text-neutral-500"
+              }`}
+            />
+          </button>
+        </div>
+
+        {showThumbs && (
+          <div className="flex gap-1.5 overflow-x-auto p-2 pb-2.5">
+            {images.map((src, i) => (
+              <button
+                key={`${src}-${i}`}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveIdx(i);
+                }}
+                className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 bg-white transition ${
+                  i === activeIdx
+                    ? "border-[var(--lilar-primary)] ring-1 ring-[var(--lilar-primary)]"
+                    : "border-transparent opacity-80 hover:opacity-100"
+                }`}
+                aria-label={`Фото ${i + 1}`}
+              >
+                <img
+                  src={src}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={onImageError}
+                  decoding="async"
+                />
+              </button>
+            ))}
+          </div>
         )}
-        {discount > 0 && (
-          <span className="absolute top-2 left-2 z-20 rounded bg-[var(--lilar-sale)] text-white text-xs font-bold px-2 py-0.5">
-            -{discount}%
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => onToggleFavorite(product.id)}
-          className="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow hover:scale-105 transition-transform"
-          aria-label="В избранное"
-        >
-          <Heart
-            className={`w-4 h-4 ${
-              favorites.includes(product.id)
-                ? "fill-[var(--lilar-primary)] text-[var(--lilar-primary)]"
-                : "text-neutral-500"
-            }`}
-          />
-        </button>
       </div>
+
       <div className="flex flex-col flex-1 p-3 sm:p-4">
-        <h3 className="text-sm sm:text-[15px] font-semibold text-[var(--lilar-text)] leading-snug line-clamp-2 min-h-[2.5rem]">
+        <h3
+          className={`text-sm sm:text-[15px] font-semibold text-[var(--lilar-text)] leading-snug line-clamp-2 min-h-[2.5rem] ${
+            onOpenDetail ? "cursor-pointer hover:text-[var(--lilar-primary)]" : ""
+          }`}
+          onClick={() => onOpenDetail?.(product)}
+          onKeyDown={(e) => {
+            if (onOpenDetail && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault();
+              onOpenDetail(product);
+            }
+          }}
+          role={onOpenDetail ? "button" : undefined}
+          tabIndex={onOpenDetail ? 0 : undefined}
+        >
           {product.name}
         </h3>
         <div className="mt-auto pt-3 flex items-end justify-between gap-2">
