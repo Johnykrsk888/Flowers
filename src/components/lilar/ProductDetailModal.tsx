@@ -1,6 +1,7 @@
-import { useEffect, useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { X, Heart, Minus, Plus, Phone, Check, Package } from 'lucide-react';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
+import { fetchMoyskladProductGalleryImages } from '@/moysklad/fetchProductGallery';
 import { PRODUCT_IMAGE_PLACEHOLDER } from '@/moysklad/placeholderImage';
 import { ImageLightbox } from './ImageLightbox';
 import { galleryUrls } from './productGallery';
@@ -37,8 +38,14 @@ export function ProductDetailModal({
   const [qty, setQty] = useState(1);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [fetchedGallery, setFetchedGallery] = useState<string[] | null>(null);
 
-  const images = product ? galleryUrls(product) : [];
+  const images = useMemo(() => {
+    if (!product) return [];
+    if (fetchedGallery && fetchedGallery.length > 1) return fetchedGallery;
+    return galleryUrls(product);
+  }, [product, fetchedGallery]);
+
   const mainSrc = images[activeImageIdx] ?? images[0];
   const showThumbs = images.length > 1;
 
@@ -49,6 +56,29 @@ export function ProductDetailModal({
       setActiveImageIdx(0);
       setLightboxOpen(false);
     }
+  }, [open, product?.id]);
+
+  /** Догрузка полной галереи по API, если в списке пришло только одно фото при нескольких в МойСклад. */
+  useEffect(() => {
+    if (!open) {
+      setFetchedGallery(null);
+      return;
+    }
+    if (!product) return;
+    setFetchedGallery(null);
+    if ((product.images?.length ?? 0) > 1) return;
+    let cancelled = false;
+    fetchMoyskladProductGalleryImages(product.id)
+      .then((urls) => {
+        if (cancelled || !urls || urls.length <= 1) return;
+        setFetchedGallery(urls);
+      })
+      .catch(() => {
+        /* нет прокси МойСклад / сеть — остаётся галерея из product */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, product?.id]);
 
   useEffect(() => {

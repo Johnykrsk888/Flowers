@@ -11,9 +11,18 @@ const ENRICH_CONCURRENCY = 8;
  * Догрузка картинок по одному товару — сотни товаров × ретраи 429 = минуты и «вечная загрузка».
  * Обогащаем только первые N карточек, у остальных — что пришло в списке (часто уже с URL).
  */
-const MAX_PRODUCTS_TO_IMAGE_ENRICH = 80;
+/** После приоритета «неполная галерея» (size > rows) — хватает для типичной витрины. */
+const MAX_PRODUCTS_TO_IMAGE_ENRICH = 200;
+
+/** В списке товаров часто приходит только часть images.rows при meta.size > rows.length — без догрузки галерея в карточке неполная. */
+function imagesListIncomplete(p: MsProduct): boolean {
+  const rowCount = p.images?.rows?.length ?? 0;
+  const metaSize = p.images?.meta?.size;
+  return typeof metaSize === "number" && metaSize > rowCount;
+}
 
 function productNeedsImageEnrich(p: MsProduct): boolean {
+  if (imagesListIncomplete(p)) return true;
   const rows = p.images?.rows;
   if (rows?.length) {
     const first = rows[0];
@@ -47,7 +56,8 @@ async function mapWithConcurrency<T, R>(
   return out;
 }
 
-async function fetchEntityWithImagesExpanded(
+/** Для догрузки полной галереи по id (карточка товара, список дал не все rows). */
+export async function fetchEntityWithImagesExpanded(
   entity: "product" | "bundle",
   id: string
 ): Promise<MsProduct | null> {
@@ -81,11 +91,14 @@ async function enrichMsProductImagesIfNeeded(
   p: MsProduct
 ): Promise<MsProduct> {
   const rows = p.images?.rows;
-  if (rows?.length) {
-    const first = rows[0];
+  const rowCount = rows?.length ?? 0;
+  const incomplete = imagesListIncomplete(p);
+
+  if (!incomplete && rowCount > 0) {
+    const first = rows![0];
     /** В rows иногда лежит «пустая» заготовка без URL — догружаем как при пустом списке. */
     if (JSON.stringify(first).includes("http")) return p;
-  } else {
+  } else if (!incomplete && rowCount === 0) {
     const size = p.images?.meta?.size ?? 0;
     const collectionHref = p.images?.meta?.href;
     const looksLikeImagesCollection =
@@ -152,6 +165,11 @@ export async function fetchAllMsEntityRows(
   }
 
   const needEnrich = all.filter(productNeedsImageEnrich);
+  needEnrich.sort((a, b) => {
+    const pa = imagesListIncomplete(a) ? 0 : 1;
+    const pb = imagesListIncomplete(b) ? 0 : 1;
+    return pa - pb;
+  });
   const enrichIds = new Set(
     needEnrich.slice(0, MAX_PRODUCTS_TO_IMAGE_ENRICH).map((p) => p.id)
   );
