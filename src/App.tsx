@@ -351,16 +351,15 @@ export default function App() {
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-[var(--lilar-border)] shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center gap-3 lg:gap-6">
+        <div className="max-w-7xl mx-auto flex items-center gap-3 lg:gap-6 pl-px pr-4 sm:pr-6 lg:pr-8 py-px">
             <a href="#" className="flex items-center gap-2 shrink-0">
               <img
                 src="/logo-bumbuket.png"
                 alt=""
-                width={36}
-                height={36}
+                width={64}
+                height={64}
                 decoding="async"
-                className="w-9 h-9 shrink-0 object-contain"
+                className="h-16 w-16 shrink-0 object-contain"
               />
               <span className="text-lg sm:text-xl font-bold text-[var(--lilar-text)]">
                 БУМБУКЕТ
@@ -437,7 +436,6 @@ export default function App() {
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
-          </div>
         </div>
 
         {isMobileMenuOpen && (
