@@ -12,11 +12,12 @@ MYSQL_PASS="${2:?mysql root password}"
 export DEBIAN_FRONTEND=noninteractive
 command -v htpasswd >/dev/null || apt-get update -y && apt-get install -y apache2-utils
 
-HT=/etc/nginx/.htpasswd-phpmyadmin
-install -d -m 0750 /etc/nginx
+# Файл в /var/www/phpmyadmin — nginx (www-data) должен читать; путь в /etc/nginx часто блокируется AppArmor.
+HT=/var/www/phpmyadmin/.htpasswd
+install -d -m 0755 /var/www/phpmyadmin
 [[ -f "$HT" ]] || touch "$HT"
-chown root:www-data "$HT"
-chmod 640 "$HT"
+chown www-data:www-data "$HT"
+chmod 600 "$HT"
 
 # Два входа в первое окно браузера: admin или root
 htpasswd -bB "$HT" admin "$ADMIN_BASIC"

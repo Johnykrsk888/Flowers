@@ -8,11 +8,11 @@ set -euo pipefail
 USER="${1:?имя}"
 PASS="${2:?пароль}"
 
-HT=/etc/nginx/.htpasswd-phpmyadmin
-install -d -m 0750 /etc/nginx
+HT=/var/www/phpmyadmin/.htpasswd
+install -d -m 0755 /var/www/phpmyadmin
 [[ -f "$HT" ]] || touch "$HT"
-chown root:www-data "$HT"
-chmod 640 "$HT"
+chown www-data:www-data "$HT"
+chmod 600 "$HT"
 
 if ! command -v htpasswd >/dev/null; then
   apt-get update -y && apt-get install -y apache2-utils

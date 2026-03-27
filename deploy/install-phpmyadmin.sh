@@ -56,9 +56,10 @@ chown root:www-data /var/www/phpmyadmin/config.inc.php
 chmod 640 /var/www/phpmyadmin/config.inc.php
 
 WEB_PASS=$(openssl rand -hex 12)
-htpasswd -bcB /etc/nginx/.htpasswd-phpmyadmin admin "${WEB_PASS}" >/dev/null
-chmod 640 /etc/nginx/.htpasswd-phpmyadmin
-chown root:www-data /etc/nginx/.htpasswd-phpmyadmin
+install -d -m 0755 /var/www/phpmyadmin
+htpasswd -bcB /var/www/phpmyadmin/.htpasswd admin "${WEB_PASS}" >/dev/null
+chown www-data:www-data /var/www/phpmyadmin/.htpasswd
+chmod 600 /var/www/phpmyadmin/.htpasswd
 
 install -d -m 0750 /etc/flowers
 umask 077
@@ -90,7 +91,7 @@ location = /phpmyadmin {
 location ^~ /phpmyadmin/ {
     client_max_body_size 64M;
     auth_basic "phpMyAdmin";
-    auth_basic_user_file /etc/nginx/.htpasswd-phpmyadmin;
+    auth_basic_user_file /var/www/phpmyadmin/.htpasswd;
     alias /var/www/phpmyadmin/;
     index index.php;
     location ~ ^/phpmyadmin/(.+\.php)$ {
