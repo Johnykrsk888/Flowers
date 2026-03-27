@@ -118,7 +118,6 @@ export default function App() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('Все');
   const [searchQuery, setSearchQuery] = useState('');
   const [folderPaths, setFolderPaths] = useState<string[]>([]);
 
@@ -210,7 +209,7 @@ export default function App() {
       out.push({
         src,
         title: p.name,
-        href: '#catalog-full',
+        href: '#catalog-hits',
       });
       if (out.length >= 5) break;
     }
@@ -225,14 +224,6 @@ export default function App() {
     }
     return out;
   }, [products]);
-
-  useEffect(() => {
-    if (selectedCategory === 'Все') return;
-    const valid = new Set(categories.map((c) => c.name));
-    if (!valid.has(selectedCategory)) {
-      setSelectedCategory('Все');
-    }
-  }, [categories, selectedCategory]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -270,29 +261,29 @@ export default function App() {
     );
   };
 
-  const filteredProducts = products.filter(product => {
-    const matchesCategory = productMatchesCategoryPath(
-      product.category,
-      selectedCategory
-    );
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      product.name.toLowerCase().includes(q) ||
-      product.description.toLowerCase().includes(q) ||
-      (product.code?.toLowerCase().includes(q) ?? false) ||
-      (product.article?.toLowerCase().includes(q) ?? false) ||
-      (product.barcodes?.toLowerCase().includes(q) ?? false);
-    return matchesCategory && matchesSearch;
-  });
-
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const hitsProducts = useMemo(() => products.slice(0, 12), [products]);
+  const hitsProducts = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    const list =
+      !q
+        ? products
+        : products.filter((product) => {
+            return (
+              product.name.toLowerCase().includes(q) ||
+              product.description.toLowerCase().includes(q) ||
+              (product.code?.toLowerCase().includes(q) ?? false) ||
+              (product.article?.toLowerCase().includes(q) ?? false) ||
+              (product.barcodes?.toLowerCase().includes(q) ?? false)
+            );
+          });
+    return list.slice(0, 12);
+  }, [products, searchQuery]);
+  /** Все группы каталога (кроме «Все») — ряды карточек под «Хитами». */
   const showcaseCats = useMemo(
-    () => folderPaths.filter(Boolean).slice(0, 4),
-    [folderPaths]
+    () => categories.filter((c) => c.name !== 'Все').map((c) => c.name),
+    [categories]
   );
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -315,9 +306,8 @@ export default function App() {
     },
   ];
 
-  const scrollToCatalog = (categoryName: string) => {
-    setSelectedCategory(categoryName);
-    document.getElementById('catalog-full')?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToHits = () => {
+    document.getElementById('catalog-hits')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -357,7 +347,7 @@ export default function App() {
               <a href="#catalog-hits" className="hover:text-[var(--lilar-primary)] transition-colors">
                 Хиты
               </a>
-              <a href="#catalog-full" className="hover:text-[var(--lilar-primary)] transition-colors">
+              <a href="#catalog-hits" className="hover:text-[var(--lilar-primary)] transition-colors">
                 Каталог
               </a>
               <a href="#about" className="hover:text-[var(--lilar-primary)] transition-colors">
@@ -430,7 +420,7 @@ export default function App() {
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-[var(--lilar-border)] bg-white">
             <nav className="flex flex-col p-4 gap-3 text-sm font-medium">
-              <a href="#catalog-full" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
+              <a href="#catalog-hits" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
                 Каталог
               </a>
               <a href="#about" onClick={() => setIsMobileMenuOpen(false)} className="py-1">
@@ -471,7 +461,7 @@ export default function App() {
               <button
                 key={name}
                 type="button"
-                onClick={() => scrollToCatalog(name)}
+                onClick={() => scrollToHits()}
                 aria-label={`Перейти к категории: ${name}`}
                 className="group flex min-w-0 w-full flex-col items-center text-left"
               >
@@ -527,16 +517,7 @@ export default function App() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => void syncFromMoysklad()}
-                disabled={productsLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--lilar-border)] bg-white text-sm font-medium text-[var(--lilar-primary)] hover:bg-[var(--lilar-bg)] disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${productsLoading ? 'animate-spin' : ''}`} />
-                Синхронизация МойСклад → БД
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollToCatalog('Все')}
+                onClick={() => scrollToHits()}
                 className="text-sm font-medium text-[var(--lilar-primary)] underline underline-offset-2"
               >
                 Весь каталог
@@ -579,19 +560,10 @@ export default function App() {
         return (
           <section
             key={cat}
-            className="py-10 bg-white border-b border-[var(--lilar-border)]"
+            className="py-10 bg-[var(--lilar-bg)] border-b border-[var(--lilar-border)]"
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-end justify-between gap-4 mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-[var(--lilar-text)]">{cat}</h2>
-                <button
-                  type="button"
-                  onClick={() => scrollToCatalog(cat)}
-                  className="text-sm font-semibold text-[var(--lilar-primary)] hover:underline shrink-0"
-                >
-                  Смотреть все
-                </button>
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-[var(--lilar-text)] mb-6">{cat}</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {row.map((product) => (
                   <LilarProductCard
@@ -609,155 +581,6 @@ export default function App() {
           </section>
         );
       })}
-
-      {/* Полный каталог: поиск + фильтры */}
-      <section id="catalog-full" className="py-12 bg-[var(--lilar-bg)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-[var(--lilar-text)] mb-2">Каталог</h2>
-          <p className="text-sm text-[var(--lilar-muted)] mb-8">
-            Поиск и фильтр по группам из МойСклад
-          </p>
-
-          <div className="mb-8 space-y-6">
-            <div className="max-w-md md:hidden">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="Поиск букета..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-[var(--lilar-border)] rounded-full bg-white focus:outline-none focus:ring-2 focus:ring-[var(--lilar-primary)]/25"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category.name}
-                  type="button"
-                  title={category.name}
-                  onClick={() => setSelectedCategory(category.name)}
-                  className={`max-w-[min(100%,20rem)] px-4 py-2.5 rounded-full text-sm font-medium transition-all text-left ${
-                    selectedCategory === category.name
-                      ? 'bg-[var(--lilar-primary)] text-white shadow-md'
-                      : 'bg-white text-[var(--lilar-text)] border border-[var(--lilar-border)] hover:border-[var(--lilar-primary)]'
-                  }`}
-                >
-                  <span className="mr-1.5">{category.icon}</span>
-                  <span className="align-middle line-clamp-2 break-words">{category.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {productsLoading && (
-            <p className="text-center text-[var(--lilar-muted)] py-12">Загрузка каталога из базы…</p>
-          )}
-          {!productsLoading && !productsError && filteredProducts.length === 0 && (
-            <p className="text-center text-[var(--lilar-muted)] py-12">Нет товаров по выбранным условиям.</p>
-          )}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-[var(--lilar-card)] rounded-xl border border-[var(--lilar-border)] shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="relative aspect-square bg-[#f0ebe4] overflow-hidden">
-                  <img
-                    src={product.image || PRODUCT_IMAGE_PLACEHOLDER}
-                    alt={product.name}
-                    onError={onProductImageError}
-                    decoding="async"
-                    className="w-full h-full object-cover object-center"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleFavorite(product.id)}
-                    className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow"
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        favorites.includes(product.id)
-                          ? 'fill-[var(--lilar-primary)] text-[var(--lilar-primary)]'
-                          : 'text-neutral-400'
-                      }`}
-                    />
-                  </button>
-                  {product.oldPrice && product.oldPrice > product.price && (
-                    <div className="absolute top-2 left-2 bg-[var(--lilar-sale)] text-white px-2 py-0.5 rounded text-xs font-bold">
-                      -{Math.round((1 - product.price / product.oldPrice) * 100)}%
-                    </div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-1 mb-1 flex-wrap">
-                    {product.rating > 0 ? (
-                      <>
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span className="text-xs text-[var(--lilar-muted)]">{product.rating}</span>
-                      </>
-                    ) : null}
-                    <span className="text-xs text-[var(--lilar-muted)]">({product.category})</span>
-                  </div>
-                  <h3 className="font-bold text-[var(--lilar-text)] text-sm mb-2 line-clamp-2">{product.name}</h3>
-                  <div className="text-[11px] text-[var(--lilar-muted)] space-y-0.5 mb-2">
-                    {product.code != null && product.code !== '' && (
-                      <div>Код: <span className="font-mono">{product.code}</span></div>
-                    )}
-                    {product.article != null && product.article !== '' && (
-                      <div>Артикул: <span className="font-mono">{product.article}</span></div>
-                    )}
-                    {product.externalCode != null && product.externalCode !== '' && (
-                      <div>Внешний код: <span className="font-mono break-all">{product.externalCode}</span></div>
-                    )}
-                    {product.barcodes != null && product.barcodes !== '' && (
-                      <div>Штрихкод: <span className="font-mono">{product.barcodes}</span></div>
-                    )}
-                    {product.weightKg != null && product.weightKg > 0 && (
-                      <div>Вес: {product.weightKg < 1 ? `${Math.round(product.weightKg * 1000)} г` : `${product.weightKg.toFixed(2)} кг`}</div>
-                    )}
-                  </div>
-                  <p className="text-xs text-[var(--lilar-muted)] mb-2 line-clamp-2">{product.description}</p>
-                  {product.salePricesLabels.length > 0 && (
-                    <ul className="text-[11px] text-[var(--lilar-muted)] mb-2 space-y-0.5">
-                      {product.salePricesLabels.map((sp, i) => (
-                        <li key={i} className="flex justify-between gap-2">
-                          <span>{sp.label}</span>
-                          <span className="font-medium">{sp.rub.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₽</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--lilar-border)]">
-                    <div>
-                      <span className="text-lg font-bold text-[var(--lilar-text)]">
-                        {product.price > 0
-                          ? `${product.price.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₽`
-                          : '—'}
-                      </span>
-                      {product.oldPrice != null && product.oldPrice > product.price && (
-                        <span className="text-xs text-[var(--lilar-muted)] line-through ml-2">
-                          {product.oldPrice.toLocaleString('ru-RU')} ₽
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={product.price <= 0}
-                      onClick={() => addToCart(product)}
-                      className="w-10 h-10 shrink-0 bg-[var(--lilar-primary)] text-white rounded-full flex items-center justify-center hover:bg-[var(--lilar-primary-hover)] disabled:opacity-40 transition-colors"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* FAQ */}
       <section id="faq" className="py-12 bg-white border-t border-[var(--lilar-border)]">
@@ -840,7 +663,7 @@ export default function App() {
                 Выберите букет в каталоге, добавьте в корзину — мы свяжемся для уточнения деталей.
               </p>
               <a
-                href="#catalog-full"
+                href="#catalog-hits"
                 className="inline-flex items-center gap-2 bg-white text-[var(--lilar-primary)] px-8 py-3.5 rounded-full font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transition-shadow"
               >
                 Перейти в каталог
@@ -875,7 +698,7 @@ export default function App() {
             <div>
               <h3 className="text-sm font-bold mb-4 uppercase tracking-wide text-neutral-300">Навигация</h3>
               <ul className="space-y-2 text-sm text-neutral-400">
-                <li><a href="#catalog-full" className="hover:text-white transition-colors">Каталог</a></li>
+                <li><a href="#catalog-hits" className="hover:text-white transition-colors">Каталог</a></li>
                 <li><a href="#about" className="hover:text-white transition-colors">О нас</a></li>
                 <li><a href="#faq" className="hover:text-white transition-colors">Вопросы</a></li>
                 <li><a href="#reviews" className="hover:text-white transition-colors">Отзывы</a></li>
@@ -886,7 +709,7 @@ export default function App() {
               <ul className="space-y-2 text-sm text-neutral-400">
                 {folderPaths.slice(0, 6).map((f) => (
                   <li key={f}>
-                    <button type="button" onClick={() => scrollToCatalog(f)} className="hover:text-white text-left transition-colors">
+                    <button type="button" onClick={() => scrollToHits()} className="hover:text-white text-left transition-colors">
                       {f}
                     </button>
                   </li>
