@@ -1,4 +1,5 @@
 import { moyskladApiPrefix } from "./apiPrefix";
+import { productCategoryInCatalogScope } from "./catalogScope";
 import { fetchAllMsEntityRows } from "./fetchEntityRows";
 import { fetchMoyskladFolderMetadata } from "./fetchFolders";
 import type { MsProduct } from "./types";
@@ -32,6 +33,8 @@ export async function fetchMoyskladCatalog(): Promise<{
   const bundleRows = await fetchAllMsEntityRows("bundle").catch(() => [] as MsProduct[]);
 
   const rows = [...productRows, ...bundleRows];
-  const products = rows.map((p) => mapMsProduct(p, folderMeta.idToPath));
+  const products = rows
+    .map((p) => mapMsProduct(p, folderMeta.idToPath))
+    .filter((p) => productCategoryInCatalogScope(p.category));
   return { products, folderPaths: folderMeta.paths };
 }

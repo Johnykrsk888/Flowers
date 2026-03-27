@@ -1,4 +1,5 @@
 import { moyskladApiPrefix } from "./apiPrefix";
+import { pathIsCatalogSubgroup } from "./catalogScope";
 import { normalizePathFromApi, resolvePathFromFolderLike } from "./categoryPath";
 import { msFetchJson } from "./msFetch";
 import type { MsProductFolderListResponse } from "./types";
@@ -65,8 +66,11 @@ export async function fetchMoyskladFolderMetadata(): Promise<MsFolderMetadata> {
     offset += PAGE_SIZE;
   }
 
+  const allPaths = Array.from(paths).sort((a, b) => a.localeCompare(b, "ru"));
+  const pathsFiltered = allPaths.filter(pathIsCatalogSubgroup);
+
   return {
-    paths: Array.from(paths).sort((a, b) => a.localeCompare(b, "ru")),
+    paths: pathsFiltered,
     idToPath,
   };
 }
