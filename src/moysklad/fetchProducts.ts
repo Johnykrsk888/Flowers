@@ -1,5 +1,8 @@
 import { moyskladApiPrefix } from "./apiPrefix";
-import { productCategoryInCatalogScope } from "./catalogScope";
+import {
+  productCategoryInCatalogScope,
+  stripCatalogRootPrefix,
+} from "./catalogScope";
 import { fetchAllMsEntityRows } from "./fetchEntityRows";
 import { fetchMoyskladFolderMetadata } from "./fetchFolders";
 import type { MsProduct } from "./types";
@@ -35,6 +38,11 @@ export async function fetchMoyskladCatalog(): Promise<{
   const rows = [...productRows, ...bundleRows];
   const products = rows
     .map((p) => mapMsProduct(p, folderMeta.idToPath))
-    .filter((p) => productCategoryInCatalogScope(p.category));
-  return { products, folderPaths: folderMeta.paths };
+    .filter((p) => productCategoryInCatalogScope(p.category))
+    .map((p) => ({
+      ...p,
+      category: stripCatalogRootPrefix(p.category),
+    }));
+  const folderPaths = folderMeta.paths.map(stripCatalogRootPrefix);
+  return { products, folderPaths };
 }

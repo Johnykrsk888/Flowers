@@ -24,3 +24,16 @@ export function pathIsCatalogSubgroup(path: string): boolean {
 export function productCategoryInCatalogScope(category: string): boolean {
   return pathIsCatalogSubgroup(category);
 }
+
+/**
+ * Для UI: убрать корневую группу каталога и разделитель («БУМБУКЕТ / Букеты» → «Букеты»).
+ * При отключённом корне (env пустой) путь не меняется.
+ */
+export function stripCatalogRootPrefix(path: string): string {
+  const root = getCatalogRootFolderName();
+  if (root === null) return path;
+  const parts = path.split(CATEGORY_PATH_SEP).map((s) => s.trim()).filter(Boolean);
+  if (parts.length < 2) return path;
+  if (!segmentEqualsRu(parts[0], root)) return path;
+  return parts.slice(1).join(CATEGORY_PATH_SEP);
+}
