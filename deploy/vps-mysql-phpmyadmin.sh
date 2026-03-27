@@ -107,14 +107,16 @@ mv "phpMyAdmin-${PMA_VER}-all-languages" /var/www/phpmyadmin
 chown -R www-data:www-data /var/www/phpmyadmin
 install -d -m 0770 -o www-data -g www-data /var/www/phpmyadmin/tmp
 
-BF=$(openssl rand -hex 16)
+# blowfish_secret: ровно 32 байта (phpMyAdmin 5.2 + Sodium), иначе вход по cookie ломается
+BF_HEX=$(openssl rand -hex 32)
 cat > /var/www/phpmyadmin/config.inc.php <<CFG
 <?php
 declare(strict_types=1);
-\$cfg['blowfish_secret'] = '${BF}';
+\$cfg['blowfish_secret'] = hex2bin('${BF_HEX}');
 \$cfg['TempDir'] = '/var/www/phpmyadmin/tmp';
 \$i = 0;
 \$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['socket'] = '/run/mysqld/mysqld.sock';
 \$cfg['Servers'][\$i]['compress'] = false;
 \$cfg['Servers'][\$i]['AllowNoPassword'] = false;
 CFG
