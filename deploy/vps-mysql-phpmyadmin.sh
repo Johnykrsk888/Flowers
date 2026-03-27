@@ -121,6 +121,12 @@ CFG
 chown root:www-data /var/www/phpmyadmin/config.inc.php
 chmod 640 /var/www/phpmyadmin/config.inc.php
 
+# После входа в phpMyAdmin — сразу открыть структуру БД (config.footer.inc.php)
+DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$DEPLOY_DIR/patch-phpmyadmin-default-db.sh" ]]; then
+  DEFAULT_MYSQL_DB="$DB_NAME" bash "$DEPLOY_DIR/patch-phpmyadmin-default-db.sh"
+fi
+
 install -d -m 0755 /var/www/phpmyadmin
 htpasswd -bcB /var/www/phpmyadmin/.htpasswd admin "${BASIC_PW}" >/dev/null
 chown www-data:www-data /var/www/phpmyadmin/.htpasswd

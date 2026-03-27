@@ -74,6 +74,8 @@ MariaDB / phpMyAdmin (пустая БД для приложения)
 
 URL: https://www.boombuket.ru/phpmyadmin/ — сначала HTTP Basic (admin + PHPMYADMIN_BASIC_PASSWORD), затем форма: root или flowers_mysql с паролями из mysql-dotenv.txt.
 
+После входа под root (и любыми учётными данными) открывается сразу структура БД flowers_mysql: файл /var/www/phpmyadmin/config.footer.inc.php (ставит vps-mysql-phpmyadmin.sh или bash deploy/patch-phpmyadmin-default-db.sh; с ПК: python scripts/vps-apply-phpmyadmin-footer.py). Повторный переход на «главную» в той же вкладке — без редиректа (sessionStorage).
+
 Каталог товаров (PostgreSQL) — отдельно, см. раздел выше.
 
 Удаление MariaDB и phpMyAdmin: bash deploy/uninstall-phpmyadmin-mariadb.sh
