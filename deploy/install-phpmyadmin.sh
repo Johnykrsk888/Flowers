@@ -48,7 +48,7 @@ declare(strict_types=1);
 \$cfg['blowfish_secret'] = '${BF}';
 \$cfg['TempDir'] = '/var/www/phpmyadmin/tmp';
 \$i = 0;
-\$cfg['Servers'][\$i]['host'] = '127.0.0.1';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
 \$cfg['Servers'][\$i]['compress'] = false;
 \$cfg['Servers'][\$i]['AllowNoPassword'] = false;
 CFG
