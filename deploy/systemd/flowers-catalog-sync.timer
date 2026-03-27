@@ -1,0 +1,12 @@
+[Unit]
+Description=Запуск flowers-catalog-sync каждые 5 минут
+
+[Timer]
+# Каждые 5 минут по часам (:00, :05, :10, …)
+OnCalendar=*-*-* *:0/5:00
+AccuracySec=1min
+Persistent=true
+RandomizedDelaySec=45
+
+[Install]
+WantedBy=timers.target

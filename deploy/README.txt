@@ -109,6 +109,8 @@ GitHub Actions (push в main) разворачивает код в /opt/flowers-
 
 Картинки в каталоге 404 на /uploads/products/*.png: файлы лежат только там, где выполняли sync (локальный ПК ≠ VPS). На сервере после деплоя GitHub Actions запускается `sync:catalog` и скачивает PNG в /opt/flowers-catalog/server/data/uploads/products/. Вручную: `DOTENV_CONFIG_PATH=/etc/flowers/catalog.env node ./node_modules/tsx/dist/cli.mjs server/sync-cli.ts` из /opt/flowers-catalog.
 
+Периодическая выгрузка (каждые ~5 минут): systemd unit `flowers-catalog-sync.service` + таймер `flowers-catalog-sync.timer` (см. deploy/systemd/). После деплоя таймер включается автоматически. Проверка: `systemctl list-timers flowers-catalog-sync.timer`, логи: `journalctl -u flowers-catalog-sync.service -n 50 --no-pager`.
+
 502 Bad Gateway на /api/catalog или /uploads: nginx не достучался до 127.0.0.1:8788 — сервис не запущен или нет /etc/flowers/catalog.env.
 На сервере: systemctl status flowers-catalog
   journalctl -u flowers-catalog -n 50 --no-pager

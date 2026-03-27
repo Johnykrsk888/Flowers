@@ -1,0 +1,17 @@
+[Unit]
+Description=МойСклад → MariaDB boombuket + загрузка изображений в /opt/flowers-catalog/server/data/uploads
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/flowers/catalog.env
+WorkingDirectory=/opt/flowers-catalog
+ExecStart=/usr/bin/node ./node_modules/tsx/dist/cli.mjs server/sync-cli.ts
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+# Синхронизация не должна висеть бесконечно (API МойСклад, сеть)
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

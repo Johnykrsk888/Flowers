@@ -5,7 +5,9 @@ const envFile =
   process.env.DOTENV_CONFIG_PATH?.trim() ||
   process.env.CATALOG_ENV_PATH?.trim() ||
   "";
-if (envFile) {
+if (process.env.MYSQL_HOST && process.env.MYSQL_USER) {
+  // systemd EnvironmentFile=/etc/flowers/catalog.env уже задал переменные
+} else if (envFile) {
   loadEnv({ path: envFile });
 } else {
   loadEnv();

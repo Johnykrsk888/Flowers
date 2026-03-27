@@ -186,6 +186,11 @@ jobs:
           "${SSH[@]}" "$USER@$HOST" "cd /opt/flowers-catalog && DOTENV_CONFIG_PATH=/etc/flowers/catalog.env node ./node_modules/tsx/dist/cli.mjs server/sync-cli.ts"
           "${SSH[@]}" "$USER@$HOST" "curl -sfS http://127.0.0.1:8788/api/catalog/products >/dev/null" || { echo "::error::catalog-server не отвечает на 8788"; exit 1; }
           echo "::notice::flowers-catalog активен на 127.0.0.1:8788"
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/systemd/flowers-catalog-sync.service "$USER@$HOST:/tmp/flowers-catalog-sync.service"
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/systemd/flowers-catalog-sync.timer "$USER@$HOST:/tmp/flowers-catalog-sync.timer"
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then cp /tmp/flowers-catalog-sync.service /etc/systemd/system/flowers-catalog-sync.service && cp /tmp/flowers-catalog-sync.timer /etc/systemd/system/flowers-catalog-sync.timer; else sudo cp /tmp/flowers-catalog-sync.service /etc/systemd/system/flowers-catalog-sync.service && sudo cp /tmp/flowers-catalog-sync.timer /etc/systemd/system/flowers-catalog-sync.timer; fi'
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then systemctl daemon-reload && systemctl enable flowers-catalog-sync.timer && systemctl restart flowers-catalog-sync.timer; else sudo systemctl daemon-reload && sudo systemctl enable flowers-catalog-sync.timer && sudo systemctl restart flowers-catalog-sync.timer; fi'
+          echo "::notice::Таймер flowers-catalog-sync.timer: синхронизация МойСклад каждые ~5 мин (systemctl list-timers flowers-catalog-sync.timer)"
 
       # Nginx: vhost + лимиты (без обновления snippets/conf.d на сервере 429 при каталоге).
       - name: Nginx flowers.conf, rate-limit, snippets и reload
