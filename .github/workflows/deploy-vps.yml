@@ -10,6 +10,9 @@
 #
 #   MOYSKLAD_LOGIN, MOYSKLAD_PASSWORD — те же, что в .env для API (для Python image-proxy на VPS).
 #
+#   CATALOG_MYSQL_USER, CATALOG_MYSQL_PASSWORD — MariaDB (пользователь flowers_mysql и пароль к БД boombuket).
+#   Без них деплой каталога не запишет /etc/flowers/catalog.env (если файла ещё нет на сервере — будет ошибка).
+#
 # Ключ на сервере: публичная часть в ~/.ssh/authorized_keys для DEPLOY_USER.
 
 name: Deploy to VPS (boombuket.ru)
@@ -135,6 +138,39 @@ jobs:
           "${SSH[@]}" "$USER@$HOST" 'command -v python3 >/dev/null 2>&1 || (export DEBIAN_FRONTEND=noninteractive; apt-get update -y && apt-get install -y python3)'
           "${SSH[@]}" "$USER@$HOST" 'test -f /etc/moysklad/moysklad-image-proxy.env' || { echo "::error::Нет /etc/moysklad/moysklad-image-proxy.env — добавьте MOYSKLAD_LOGIN и MOYSKLAD_PASSWORD в GitHub Secrets (как в .env) или создайте файл на сервере"; exit 1; }
           "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then systemctl daemon-reload && systemctl enable moysklad-image-proxy && systemctl restart moysklad-image-proxy; else sudo systemctl daemon-reload && sudo systemctl enable moysklad-image-proxy && sudo systemctl restart moysklad-image-proxy; fi'
+
+      # Node на 127.0.0.1:8788 — GET /api/catalog/products, /uploads (nginx → 8788; 8787 занят Python).
+      - name: Flowers catalog (Node + systemd flowers-catalog)
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          MU: ${{ secrets.CATALOG_MYSQL_USER }}
+          MP: ${{ secrets.CATALOG_MYSQL_PASSWORD }}
+          LOGIN: ${{ secrets.MOYSKLAD_LOGIN }}
+          PASS: ${{ secrets.MOYSKLAD_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
+          tar czf - server src/moysklad package.json package-lock.json tsconfig.json | "${SSH[@]}" "$USER@$HOST" "install -d /opt/flowers-catalog && tar xzf - -C /opt/flowers-catalog"
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/systemd/flowers-catalog.service "$USER@$HOST:/tmp/flowers-catalog.service"
+          "${SSH[@]}" "$USER@$HOST" 'export DEBIAN_FRONTEND=noninteractive; if command -v node >/dev/null 2>&1; then true; elif [ "$(id -u)" -eq 0 ]; then curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs; else sudo bash -c "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -" && sudo apt-get install -y nodejs; fi'
+          "${SSH[@]}" "$USER@$HOST" "cd /opt/flowers-catalog && npm ci --omit=dev"
+          "${SSH[@]}" "$USER@$HOST" 'install -d /opt/flowers-catalog/server/data/uploads/products'
+          if [ -n "${MU:-}" ] && [ -n "${MP:-}" ]; then
+            python3 deploy/write-catalog-env.py
+            scp -o StrictHostKeyChecking=yes -o BatchMode=yes /tmp/catalog.env "$USER@$HOST:/tmp/catalog.env"
+            rm -f /tmp/catalog.env
+            "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then install -d /etc/flowers && mv /tmp/catalog.env /etc/flowers/catalog.env && chmod 600 /etc/flowers/catalog.env; else sudo install -d /etc/flowers && sudo mv /tmp/catalog.env /etc/flowers/catalog.env && sudo chmod 600 /etc/flowers/catalog.env; fi'
+          elif "${SSH[@]}" "$USER@$HOST" "test -f /etc/flowers/catalog.env"; then
+            echo "::notice::Используется существующий /etc/flowers/catalog.env на сервере"
+          else
+            echo "::error::Задайте GitHub Secrets CATALOG_MYSQL_USER и CATALOG_MYSQL_PASSWORD (MariaDB для БД boombuket) или создайте вручную /etc/flowers/catalog.env на VPS"
+            exit 1
+          fi
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then cp /tmp/flowers-catalog.service /etc/systemd/system/flowers-catalog.service; else sudo cp /tmp/flowers-catalog.service /etc/systemd/system/flowers-catalog.service; fi'
+          "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then systemctl daemon-reload && systemctl enable flowers-catalog && systemctl restart flowers-catalog; else sudo systemctl daemon-reload && sudo systemctl enable flowers-catalog && sudo systemctl restart flowers-catalog; fi'
+          "${SSH[@]}" "$USER@$HOST" "curl -sfS http://127.0.0.1:8788/api/catalog/products >/dev/null" || { echo "::error::catalog-server не отвечает на 8788"; exit 1; }
+          echo "::notice::flowers-catalog активен на 127.0.0.1:8788"
 
       # Nginx: vhost + лимиты (без обновления snippets/conf.d на сервере 429 при каталоге).
       - name: Nginx flowers.conf, rate-limit, snippets и reload

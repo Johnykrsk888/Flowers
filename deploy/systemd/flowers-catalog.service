@@ -1,0 +1,18 @@
+[Unit]
+Description=Flowers catalog API (MariaDB boombuket + /uploads)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/flowers-catalog
+EnvironmentFile=-/etc/flowers/catalog.env
+# tsx в dependencies; порт 8788 (8787 — Python img-proxy).
+ExecStart=/usr/bin/node ./node_modules/tsx/dist/cli.mjs server/index.ts
+Restart=on-failure
+RestartSec=5
+# Запись в server/data/uploads/products
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target
