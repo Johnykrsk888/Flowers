@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
 /**
- * Тот же редирект, что в config.header.inc.php: шаблон login/form подключает Config::renderFooter()
- * как config_footer — без этого на экране входа скрипт был бы только в header основого layout,
- * а форма логина рендерится отдельно.
+ * После входа в MariaDB (в т.ч. root) — сразу открыть структуру БД.
+ * Важно: один сервер — $cfg['Servers'][1], $cfg['ServerDefault'] = 1 (см. deploy/vps-mysql-phpmyadmin.sh).
+ * Вариант с Servers[0] и ServerDefault=0 даёт пустой Server или «неверный индекс сервера».
+ * Повторный заход на «главную» в той же вкладке — без редиректа (sessionStorage).
  */
 $db = 'flowers_mysql';
 ?>

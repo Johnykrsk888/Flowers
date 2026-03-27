@@ -6,6 +6,8 @@ PHPMYADMIN_BASIC_PASSWORD=
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
 MYSQL_DATABASE=flowers_mysql
+# Каталог (npm run sync:catalog / catalog-server): отдельная БД, по умолчанию boombuket
+# MYSQL_DATABASE_BOOMBUKET=boombuket
 MYSQL_USER=flowers_mysql
 MYSQL_PASSWORD=
 PHPMYADMIN_MYSQL_USER=root

@@ -1,6 +1,6 @@
 import { normalizePathFromApi, resolvePathFromFolderLike } from "./categoryPath";
 import { folderIdFromHref } from "./folderId";
-import type { MsProduct } from "./types";
+import type { MsImageRow, MsProduct } from "./types";
 import { mediaUrlForApp, normalizeMoyskladImageDownloadUrl } from "./mediaUrl";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "./placeholderImage";
 
@@ -77,6 +77,40 @@ function pickImageUrl(p: MsProduct): string {
     }
   }
   return PRODUCT_IMAGE_PLACEHOLDER;
+}
+
+const MS_API_ORIGIN = "https://api.moysklad.ru/api/remap/1.2";
+
+/** Сырой HTTPS-URL для скачивания на сервере (без прокси фронта). */
+export function pickRawMoyskladImageUrl(p: MsProduct): string | null {
+  const rows = p.images?.rows;
+  if (!rows?.length) return null;
+  const first = rows[0];
+  const candidates = [
+    first.downloadHref,
+    first.meta?.downloadHref,
+    first.medium?.downloadHref,
+    first.medium?.href,
+    first.miniature?.downloadHref,
+    first.miniature?.href,
+    first.tiny?.downloadHref,
+    first.tiny?.href,
+    first.meta?.href,
+  ];
+  const toAbsolute = (u: string): string => {
+    const n = normalizeMoyskladImageDownloadUrl(u.trim());
+    if (n.startsWith("http")) return n;
+    if (n.startsWith("/")) return `${MS_API_ORIGIN}${n}`;
+    return n;
+  };
+  for (const raw of candidates) {
+    if (!raw) continue;
+    return toAbsolute(raw);
+  }
+  for (const raw of collectImageUrlsDeep(first)) {
+    return toAbsolute(raw);
+  }
+  return null;
 }
 
 function mainPriceRub(p: MsProduct): number {

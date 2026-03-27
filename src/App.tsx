@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, type SyntheticEvent } from 'react';
 import { ShoppingCart, Heart, Search, Menu, X, Star, Truck, Flower2, Award, Clock, ChevronRight, Phone, Mail, Share2, Users, Plus, Minus, Trash2, RefreshCw } from 'lucide-react';
-import { fetchMoyskladCatalog } from '@/moysklad/fetchProducts';
+import { fetchCatalogFromDb, postCatalogSync } from '@/catalog/fetchCatalog';
 import { productMatchesCategoryPath } from '@/moysklad/categoryPath';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
 import {
@@ -93,7 +93,7 @@ export default function App() {
     setProductsLoading(true);
     setProductsError(null);
     try {
-      const { products: list, folderPaths: folders } = await fetchMoyskladCatalog();
+      const { products: list, folderPaths: folders } = await fetchCatalogFromDb();
       setProducts(list);
       setFolderPaths(folders);
       setCart((prev) =>
@@ -106,6 +106,27 @@ export default function App() {
       setProductsError(e instanceof Error ? e.message : String(e));
       setProducts([]);
       setFolderPaths([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  const syncFromMoysklad = useCallback(async () => {
+    setProductsLoading(true);
+    setProductsError(null);
+    try {
+      await postCatalogSync();
+      const { products: list, folderPaths: folders } = await fetchCatalogFromDb();
+      setProducts(list);
+      setFolderPaths(folders);
+      setCart((prev) =>
+        prev.map((item) => {
+          const fresh = list.find((p) => p.id === item.id);
+          return fresh ? { ...fresh, quantity: item.quantity } : item;
+        })
+      );
+    } catch (e) {
+      setProductsError(e instanceof Error ? e.message : String(e));
     } finally {
       setProductsLoading(false);
     }
@@ -382,12 +403,12 @@ export default function App() {
             </div>
             <button
               type="button"
-              onClick={() => void loadProducts()}
+              onClick={() => void syncFromMoysklad()}
               disabled={productsLoading}
               className="inline-flex items-center justify-center gap-2 self-center sm:self-auto px-5 py-2.5 rounded-full border-2 border-rose-200 bg-white text-rose-600 font-medium hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
             >
               <RefreshCw className={`w-5 h-5 ${productsLoading ? 'animate-spin' : ''}`} aria-hidden />
-              Обновить из МойСклад
+              Синхронизировать МойСклад → БД
             </button>
           </div>
 
@@ -430,7 +451,7 @@ export default function App() {
 
           {/* Products Grid */}
           {productsLoading && (
-            <p className="text-center text-gray-600 py-12">Загрузка каталога из МойСклад…</p>
+            <p className="text-center text-gray-600 py-12">Загрузка каталога из базы…</p>
           )}
           {productsError && (
             <div className="max-w-2xl mx-auto rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

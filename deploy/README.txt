@@ -74,11 +74,35 @@ MariaDB / phpMyAdmin (пустая БД для приложения)
 
 URL: https://www.boombuket.ru/phpmyadmin/ — сначала HTTP Basic: либо admin + PHPMYADMIN_BASIC_PASSWORD, либо root + PHPMYADMIN_MYSQL_PASSWORD (оба пользователя должны быть в .htpasswd; vps-mysql-phpmyadmin.sh и install-phpmyadmin.sh добавляют root). Затем форма MariaDB: root + PHPMYADMIN_MYSQL_PASSWORD или flowers_mysql + MYSQL_PASSWORD.
 
-После входа под root (и любыми учётными данными) открывается сразу структура БД flowers_mysql: файл /var/www/phpmyadmin/config.footer.inc.php (ставит vps-mysql-phpmyadmin.sh или bash deploy/patch-phpmyadmin-default-db.sh; с ПК: python scripts/vps-apply-phpmyadmin-footer.py). Повторный переход на «главную» в той же вкладке — без редиректа (sessionStorage).
+После входа под root (и любыми учётными данными) открывается сразу структура БД flowers_mysql: файл /var/www/phpmyadmin/config.header.inc.php (на странице входа minimal footer не выводится, поэтому скрипт в header). config.footer.inc.php — заглушка. Ставит vps-mysql-phpmyadmin.sh или bash deploy/patch-phpmyadmin-default-db.sh; с ПК: python scripts/vps-apply-phpmyadmin-footer.py. Повторный переход на «главную» в той же вкладке — без редиректа (sessionStorage).
+
+Если нет формы входа MariaDB (только «Appearance settings») или «неверный индекс сервера»: при одном сервере в config.inc.php нужны $i = 1, $cfg['Servers'][1] и $cfg['ServerDefault'] = 1 (см. deploy/vps-mysql-phpmyadmin.sh). Исправление на уже установленном: python scripts/vps-fix-pma-server-default.py
 
 Если «не принимает» пароль root при верном пароле MariaDB: в phpMyAdmin 5.2 ключ blowfish_secret должен быть 32 байта (в config — hex2bin из 64 hex-символов). Исправление на сервере: python scripts/vps-fix-pma-blowfish.py или bash deploy/patch-phpmyadmin-cookie-auth.sh
 
 Каталог товаров (PostgreSQL) — отдельно, см. раздел выше.
+
+Каталог на сайте из MariaDB «boombuket» (МойСклад → БД + файлы)
+================================================================
+Товары после синхронизации лежат в БД `boombuket` (создание: `python scripts/create-boombuket-db.py` на сервере или вручную).
+На ПК в `.env`: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, при необходимости `MYSQL_DATABASE_BOOMBUKET` (по умолчанию `boombuket`).
+
+Локальная начальная загрузка с ПК, если MariaDB только на VPS:
+  ssh -L 3307:127.0.0.1:3306 root@ВАШ_СЕРВЕР
+  В другом окне: в `.env` задать `MYSQL_HOST=127.0.0.1`, `MYSQL_PORT=3307`, затем:
+  npm run sync:catalog
+
+На сервере: установить Node.js, склонировать/скопировать проект, положить `.env`, затем:
+  npm ci && npm run sync:catalog
+  (один раз — начальная загрузка; кнопка на сайте вызывает POST /api/catalog/sync.)
+
+Сервис каталога (Express): порт по умолчанию **8788** (`CATALOG_SERVER_PORT`), чтобы не пересекаться с Python img-proxy на **8787**.
+  npm run catalog-server
+  Проверка: curl -s http://127.0.0.1:8788/api/catalog/products | head -c 200
+
+В nginx уже добавлены `location` для `/api/catalog/` и `/uploads/` → 127.0.0.1:8788 (см. deploy/nginx/flowers.conf). После правки конфига: `nginx -t && systemctl reload nginx`.
+
+В продакшене держите `catalog-server` под systemd (или pm2), рядом с существующим Python на 8787. Статика картинок: каталог `server/data/uploads/` на машине, где крутится Node; публичные URL вида `/uploads/products/...`.
 
 Удаление MariaDB и phpMyAdmin: bash deploy/uninstall-phpmyadmin-mariadb.sh
 Альтернатива без пустой БД: deploy/install-phpmyadmin.sh

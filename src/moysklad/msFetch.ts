@@ -4,8 +4,22 @@
 /** Долгие ретраи блокируют UI минутами. */
 const MAX_429_RETRIES = 5;
 
+function moyskladBasicAuthHeader(): string | undefined {
+  if (typeof process === "undefined" || !process.env?.MOYSKLAD_LOGIN) return undefined;
+  const login = process.env.MOYSKLAD_LOGIN;
+  const password = process.env.MOYSKLAD_PASSWORD ?? "";
+  if (typeof Buffer !== "undefined") {
+    return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
+  }
+  return undefined;
+}
+
 export async function msFetchJson(url: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
+  const basic = moyskladBasicAuthHeader();
+  if (basic && !headers.has("Authorization")) {
+    headers.set("Authorization", basic);
+  }
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json;charset=utf-8");
   }

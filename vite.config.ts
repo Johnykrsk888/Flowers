@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
     login && password
       ? Buffer.from(`${login}:${password}`).toString("base64")
       : "";
+  const catalogPort = env.CATALOG_SERVER_PORT || "8788";
+  const catalogTarget = `http://127.0.0.1:${catalogPort}`;
 
   return {
     base: "/",
@@ -27,8 +29,17 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      proxy: basic
-        ? {
+      proxy: {
+        "/api/catalog": {
+          target: catalogTarget,
+          changeOrigin: true,
+        },
+        "/uploads": {
+          target: catalogTarget,
+          changeOrigin: true,
+        },
+        ...(basic
+          ? {
             "/api/moysklad": {
               target: "https://api.moysklad.ru",
               changeOrigin: true,
@@ -50,7 +61,8 @@ export default defineConfig(({ mode }) => {
               },
             },
           }
-        : {},
+          : {}),
+      },
     },
   };
 });

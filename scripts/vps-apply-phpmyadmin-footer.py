@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Залить config.footer.inc.php на VPS (пароли из .env)."""
+"""Залить config.header.inc.php и config.footer.inc.php на VPS (пароли из .env)."""
 from __future__ import annotations
 
 import sys
@@ -36,13 +36,15 @@ def main() -> int:
         print("В .env нет SERVER_PASSWORD", file=sys.stderr)
         return 1
 
-    src = ROOT / "deploy" / "phpmyadmin" / "config.footer.inc.php"
-    if not src.is_file():
-        print(f"Нет {src}", file=sys.stderr)
+    header_src = ROOT / "deploy" / "phpmyadmin" / "config.header.inc.php"
+    footer_src = ROOT / "deploy" / "phpmyadmin" / "config.footer.inc.php"
+    if not header_src.is_file() or not footer_src.is_file():
+        print(f"Нет {header_src} или {footer_src}", file=sys.stderr)
         return 1
 
-    text = src.read_text(encoding="utf-8")
-    text = text.replace("$db = 'flowers_mysql';", f"$db = '{db}';")
+    header_text = header_src.read_text(encoding="utf-8")
+    header_text = header_text.replace("$db = 'flowers_mysql';", f"$db = '{db}';")
+    footer_text = footer_src.read_text(encoding="utf-8")
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -55,15 +57,21 @@ def main() -> int:
         look_for_keys=False,
     )
     sftp = client.open_sftp()
-    remote = "/tmp/config.footer.inc.php"
-    with sftp.open(remote, "w") as f:
-        f.write(text)
-    sftp.chmod(remote, 0o644)
+    for name, text in (
+        ("/tmp/config.header.inc.php", header_text),
+        ("/tmp/config.footer.inc.php", footer_text),
+    ):
+        with sftp.open(name, "w") as f:
+            f.write(text)
+        sftp.chmod(name, 0o644)
     sftp.close()
 
     stdin, stdout, stderr = client.exec_command(
-        f"install -m 0644 -o root -g www-data {remote} /var/www/phpmyadmin/config.footer.inc.php && "
-        f"rm -f {remote} && echo OK"
+        "install -m 0644 -o root -g www-data /tmp/config.header.inc.php "
+        "/var/www/phpmyadmin/config.header.inc.php && "
+        "install -m 0644 -o root -g www-data /tmp/config.footer.inc.php "
+        "/var/www/phpmyadmin/config.footer.inc.php && "
+        "rm -f /tmp/config.header.inc.php /tmp/config.footer.inc.php && echo OK"
     )
     out = stdout.read().decode() + stderr.read().decode()
     client.close()

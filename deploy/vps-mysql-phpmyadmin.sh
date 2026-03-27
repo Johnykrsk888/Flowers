@@ -114,7 +114,9 @@ cat > /var/www/phpmyadmin/config.inc.php <<CFG
 declare(strict_types=1);
 \$cfg['blowfish_secret'] = hex2bin('${BF_HEX}');
 \$cfg['TempDir'] = '/var/www/phpmyadmin/tmp';
-\$i = 0;
+# Один сервер: индекс 1 (не 0) и ServerDefault=1 — иначе дефолт из config.default.php и индекс 0 дают пустой Server / «неверный индекс сервера».
+\$cfg['ServerDefault'] = 1;
+\$i = 1;
 \$cfg['Servers'][\$i]['host'] = 'localhost';
 \$cfg['Servers'][\$i]['socket'] = '/run/mysqld/mysqld.sock';
 \$cfg['Servers'][\$i]['compress'] = false;
@@ -123,7 +125,7 @@ CFG
 chown root:www-data /var/www/phpmyadmin/config.inc.php
 chmod 640 /var/www/phpmyadmin/config.inc.php
 
-# После входа в phpMyAdmin — сразу открыть структуру БД (config.footer.inc.php)
+# После входа в phpMyAdmin — сразу открыть структуру БД (config.header.inc.php + пустой footer)
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$DEPLOY_DIR/patch-phpmyadmin-default-db.sh" ]]; then
   DEFAULT_MYSQL_DB="$DB_NAME" bash "$DEPLOY_DIR/patch-phpmyadmin-default-db.sh"

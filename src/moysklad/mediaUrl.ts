@@ -35,10 +35,10 @@ function needsImageStreamProxy(rest: string): boolean {
 }
 
 function proxyRemapRest(rest: string, fallbackUrl: string): string {
-  if (import.meta.env.DEV) {
+  if (import.meta.env?.DEV) {
     return `/api/moysklad${rest}`;
   }
-  const prefix = import.meta.env.VITE_MOYSKLAD_API_PREFIX?.replace(/\/$/, "");
+  const prefix = import.meta.env?.VITE_MOYSKLAD_API_PREFIX?.replace(/\/$/, "");
   if (prefix) {
     if (needsImageStreamProxy(rest)) {
       return `${prefix}${PROD_IMG_STREAM_PREFIX}${rest}`;

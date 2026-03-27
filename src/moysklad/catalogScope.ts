@@ -5,7 +5,7 @@ import { CATEGORY_PATH_SEP, segmentEqualsRu } from "./categoryPath";
  * Пустая строка в VITE_MOYSKLAD_CATALOG_ROOT_FOLDER — без ограничения (для отладки).
  */
 export function getCatalogRootFolderName(): string | null {
-  const raw = import.meta.env.VITE_MOYSKLAD_CATALOG_ROOT_FOLDER;
+  const raw = import.meta.env?.VITE_MOYSKLAD_CATALOG_ROOT_FOLDER;
   if (raw === "") return null;
   const t = (raw ?? "БУМБУКЕТ").trim();
   return t.length > 0 ? t : "БУМБУКЕТ";
