@@ -9,6 +9,8 @@ type Props = {
   onToggleFavorite: (id: string) => void;
   onAddToCart: (p: CatalogProduct) => void;
   onImageError: (e: SyntheticEvent<HTMLImageElement>) => void;
+  /** Клик по миниатюре — открыть карточку товара */
+  onOpenDetail?: (p: CatalogProduct) => void;
   /** Компактная сетка как на витрине-референсе */
   compact?: boolean;
 };
@@ -19,6 +21,7 @@ export function LilarProductCard({
   onToggleFavorite,
   onAddToCart,
   onImageError,
+  onOpenDetail,
   compact = false,
 }: Props) {
   const discount =
@@ -36,17 +39,25 @@ export function LilarProductCard({
           alt={product.name}
           onError={onImageError}
           decoding="async"
-          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
         />
+        {onOpenDetail && (
+          <button
+            type="button"
+            className="absolute inset-0 z-[1] cursor-pointer bg-transparent"
+            aria-label="Открыть карточку товара"
+            onClick={() => onOpenDetail(product)}
+          />
+        )}
         {discount > 0 && (
-          <span className="absolute top-2 left-2 rounded bg-[var(--lilar-sale)] text-white text-xs font-bold px-2 py-0.5">
+          <span className="absolute top-2 left-2 z-20 rounded bg-[var(--lilar-sale)] text-white text-xs font-bold px-2 py-0.5">
             -{discount}%
           </span>
         )}
         <button
           type="button"
           onClick={() => onToggleFavorite(product.id)}
-          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow hover:scale-105 transition-transform"
+          className="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow hover:scale-105 transition-transform"
           aria-label="В избранное"
         >
           <Heart

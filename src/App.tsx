@@ -23,6 +23,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { LilarProductCard } from '@/components/lilar/ProductCard';
+import { ProductDetailModal } from '@/components/lilar/ProductDetailModal';
 import { HeroCarousel, type HeroSlide } from '@/components/lilar/HeroCarousel';
 import { fetchCatalogFromDb, postCatalogSync } from '@/catalog/fetchCatalog';
 import { productMatchesCategoryPath } from '@/moysklad/categoryPath';
@@ -73,6 +74,20 @@ function catalogCategorySectionId(name: string): string {
 }
 
 type Product = CatalogProduct;
+
+/** Поиск по названию, описанию, коду, артикулу, штрихкоду и группе. */
+function productMatchesSearchQuery(product: Product, raw: string): boolean {
+  const q = raw.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    product.name.toLowerCase().includes(q) ||
+    product.description.toLowerCase().includes(q) ||
+    product.category.toLowerCase().includes(q) ||
+    (product.code?.toLowerCase().includes(q) ?? false) ||
+    (product.article?.toLowerCase().includes(q) ?? false) ||
+    (product.barcodes?.toLowerCase().includes(q) ?? false)
+  );
+}
 
 interface CartItem extends Product {
   quantity: number;
@@ -130,6 +145,7 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [folderPaths, setFolderPaths] = useState<string[]>([]);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
@@ -235,15 +251,17 @@ export default function App() {
     return out;
   }, [products]);
 
-  const addToCart = (product: Product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+  const addToCart = (product: Product, quantity = 1) => {
+    const add = Math.max(0, Math.floor(quantity));
+    if (add === 0) return;
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
       if (existing) {
-        return prev.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + add } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: add }];
     });
   };
 
@@ -275,19 +293,7 @@ export default function App() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const hitsProducts = useMemo(() => {
-    const q = searchQuery.toLowerCase();
-    const list =
-      !q
-        ? products
-        : products.filter((product) => {
-            return (
-              product.name.toLowerCase().includes(q) ||
-              product.description.toLowerCase().includes(q) ||
-              (product.code?.toLowerCase().includes(q) ?? false) ||
-              (product.article?.toLowerCase().includes(q) ?? false) ||
-              (product.barcodes?.toLowerCase().includes(q) ?? false)
-            );
-          });
+    const list = products.filter((p) => productMatchesSearchQuery(p, searchQuery));
     return list.slice(0, 12);
   }, [products, searchQuery]);
   /** Все группы каталога (кроме «Все») — ряды карточек под «Хитами». */
@@ -385,15 +391,19 @@ export default function App() {
                 Контакты
               </a>
             </nav>
-            <div className="hidden md:flex flex-1 max-w-md mx-2">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+            <div className="hidden min-w-0 md:flex flex-1 max-w-md mx-2">
+              <div className="relative w-full min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none z-10" />
                 <input
                   type="search"
                   placeholder="Что ищете?"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full border border-[var(--lilar-border)] bg-[#fafaf9] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--lilar-primary)]/30"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') scrollToHits();
+                  }}
+                  autoComplete="off"
+                  className="relative z-10 w-full min-w-0 pl-10 pr-4 py-2.5 rounded-full border border-[var(--lilar-border)] bg-[#fafaf9] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--lilar-primary)]/30"
                 />
               </div>
             </div>
@@ -436,6 +446,23 @@ export default function App() {
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
+        </div>
+
+        <div className="md:hidden max-w-7xl mx-auto pl-px pr-4 sm:pr-6 pb-3 pt-1">
+          <div className="relative w-full min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none z-10" />
+            <input
+              type="search"
+              placeholder="Что ищете?"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') scrollToHits();
+              }}
+              autoComplete="off"
+              className="relative z-10 w-full min-w-0 pl-10 pr-4 py-2.5 rounded-full border border-[var(--lilar-border)] bg-[#fafaf9] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--lilar-primary)]/30"
+            />
+          </div>
         </div>
 
         {isMobileMenuOpen && (
@@ -565,6 +592,7 @@ export default function App() {
                 onToggleFavorite={toggleFavorite}
                 onAddToCart={addToCart}
                 onImageError={onProductImageError}
+                onOpenDetail={setDetailProduct}
                 compact
               />
             ))}
@@ -576,6 +604,7 @@ export default function App() {
       {showcaseCats.map((cat) => {
         const row = products
           .filter((p) => productMatchesCategoryPath(p.category, cat))
+          .filter((p) => productMatchesSearchQuery(p, searchQuery))
           .slice(0, 8);
         if (row.length === 0) return null;
         return (
@@ -595,6 +624,7 @@ export default function App() {
                     onToggleFavorite={toggleFavorite}
                     onAddToCart={addToCart}
                     onImageError={onProductImageError}
+                    onOpenDetail={setDetailProduct}
                     compact
                   />
                 ))}
@@ -765,6 +795,16 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      <ProductDetailModal
+        product={detailProduct}
+        open={detailProduct != null}
+        onClose={() => setDetailProduct(null)}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+        onAddToCart={addToCart}
+        onImageError={onProductImageError}
+      />
 
       {/* Корзина */}
       {isCartOpen && (
