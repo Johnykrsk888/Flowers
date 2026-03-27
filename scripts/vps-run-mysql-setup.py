@@ -60,7 +60,7 @@ def main() -> int:
     sftp.close()
 
     # PTY — чтобы apt/dpkg не ругались на отсутствие TTY
-    stdin, stdout, stderr = client.exec_command(f"bash -x {remote} 2>&1", get_pty=True, timeout=900)
+    stdin, stdout, stderr = client.exec_command(f"bash {remote} 2>&1", get_pty=True, timeout=900)
     log = stdout.read().decode("utf-8", errors="replace")
     print(log)
     code = stdout.channel.recv_exit_status()
