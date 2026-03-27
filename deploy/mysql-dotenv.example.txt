@@ -1,4 +1,5 @@
 # Пример переменных для локального .env (копируйте из вывода на сервере: cat /etc/flowers/mysql-dotenv.txt)
+# HTTP Basic: пользователь admin + PHPMYADMIN_BASIC_PASSWORD ИЛИ пользователь root + PHPMYADMIN_MYSQL_PASSWORD
 PHPMYADMIN_URL=https://www.boombuket.ru/phpmyadmin/
 PHPMYADMIN_BASIC_USER=admin
 PHPMYADMIN_BASIC_PASSWORD=
