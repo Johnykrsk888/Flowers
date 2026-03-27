@@ -7,7 +7,8 @@
 #   export MYSQL_DATABASE=flowers_mysql
 #   export MYSQL_USER=flowers_mysql
 #   export MYSQL_PASSWORD='...'
-#   export MARIADB_ROOT_PASSWORD='...'
+#   export MARIADB_ROOT_PASSWORD='...'   # текущий пароль root, если нет socket и нет debian.cnf
+#   export MARIADB_ROOT_PASSWORD_NEW='...' # новый пароль root (иначе случайный)
 #   export PHPMYADMIN_BASIC_PASSWORD='...'
 #
 # После выполнения: cat /etc/flowers/mysql-dotenv.txt — скопируйте строки в локальный .env
@@ -22,9 +23,10 @@ export DEBIAN_FRONTEND=noninteractive
 
 DB_NAME="${MYSQL_DATABASE:-flowers_mysql}"
 DB_USER="${MYSQL_USER:-flowers_mysql}"
-ROOT_PW="${MARIADB_ROOT_PASSWORD:-$(openssl rand -hex 16)}"
+ROOT_PW_NEW="${MARIADB_ROOT_PASSWORD_NEW:-$(openssl rand -hex 16)}"
 BASIC_PW="${PHPMYADMIN_BASIC_PASSWORD:-$(openssl rand -hex 12)}"
 APP_PW="${MYSQL_PASSWORD:-$(openssl rand -hex 16)}"
+# MARIADB_ROOT_PASSWORD — текущий пароль root (если без пароля и debian.cnf не подошли)
 
 apt-get update -y
 apt-get install -y \
@@ -34,11 +36,50 @@ apt-get install -y \
 
 systemctl enable --now mariadb
 
-# root MariaDB
-mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PW}'; FLUSH PRIVILEGES;" || \
-  mariadb -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PW}'; FLUSH PRIVILEGES;"
+# Пароль root: socket → известный MARIADB_ROOT_PASSWORD → сброс через skip-grant-tables (Debian 13: debian.cnf без пароля бесполезен)
+bootstrap_root_password() {
+  if mariadb -e "SELECT 1" &>/dev/null; then
+    mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PW_NEW}'; FLUSH PRIVILEGES;"
+    return 0
+  fi
+  if [[ -n "${MARIADB_ROOT_PASSWORD:-}" ]] && mariadb -uroot -p"${MARIADB_ROOT_PASSWORD}" -e "SELECT 1" &>/dev/null; then
+    mariadb -uroot -p"${MARIADB_ROOT_PASSWORD}" -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PW_NEW}'; FLUSH PRIVILEGES;"
+    return 0
+  fi
+  echo "Сброс пароля root MariaDB (skip-grant-tables, сервис на ~1 мин остановлен)..."
+  systemctl stop mariadb
+  MARIADBD=$(command -v mariadbd || command -v mysqld || true)
+  if [[ -z "$MARIADBD" ]]; then
+    echo "Не найден mariadbd"
+    systemctl start mariadb || true
+    return 1
+  fi
+  nohup "$MARIADBD" --skip-grant-tables --skip-networking --user=mysql >>/tmp/mariadb-skip-grant.log 2>&1 &
+  BG_PID=$!
+  for _ in $(seq 1 45); do
+    if mariadb -u root -e "SELECT 1" &>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  mariadb -u root -e "FLUSH PRIVILEGES; ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PW_NEW}'; FLUSH PRIVILEGES;"
+  kill "$BG_PID" 2>/dev/null || true
+  sleep 2
+  killall mariadbd 2>/dev/null || true
+  sleep 1
+  systemctl start mariadb
+  for _ in $(seq 1 30); do
+    if mariadb -uroot -p"${ROOT_PW_NEW}" -e "SELECT 1" &>/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "После сброса не удалось войти с новым паролем root. См. /tmp/mariadb-skip-grant.log"
+  return 1
+}
+bootstrap_root_password || exit 1
 
-mariadb -uroot -p"${ROOT_PW}" -e "
+mariadb -uroot -p"${ROOT_PW_NEW}" -e "
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${APP_PW}';
 ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${APP_PW}';
@@ -98,7 +139,7 @@ MYSQL_DATABASE=${DB_NAME}
 MYSQL_USER=${DB_USER}
 MYSQL_PASSWORD=${APP_PW}
 PHPMYADMIN_MYSQL_USER=root
-PHPMYADMIN_MYSQL_PASSWORD=${ROOT_PW}
+PHPMYADMIN_MYSQL_PASSWORD=${ROOT_PW_NEW}
 DOTENV
 chmod 600 /etc/flowers/mysql-dotenv.txt
 
