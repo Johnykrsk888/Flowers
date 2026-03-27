@@ -10,8 +10,8 @@
 #
 #   MOYSKLAD_LOGIN, MOYSKLAD_PASSWORD — те же, что в .env для API (для Python image-proxy на VPS).
 #
-#   CATALOG_MYSQL_USER, CATALOG_MYSQL_PASSWORD — MariaDB (пользователь flowers_mysql и пароль к БД boombuket).
-#   Без них деплой каталога не запишет /etc/flowers/catalog.env (если файла ещё нет на сервере — будет ошибка).
+#   Опционально для каталога (иначе берётся /etc/flowers/mysql-dotenv.txt на VPS):
+#   CATALOG_MYSQL_USER, CATALOG_MYSQL_PASSWORD — или общие MYSQL_USER, MYSQL_PASSWORD.
 #
 # Ключ на сервере: публичная часть в ~/.ssh/authorized_keys для DEPLOY_USER.
 
@@ -146,11 +146,16 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
           MU: ${{ secrets.CATALOG_MYSQL_USER }}
           MP: ${{ secrets.CATALOG_MYSQL_PASSWORD }}
+          MU_ALT: ${{ secrets.MYSQL_USER }}
+          MP_ALT: ${{ secrets.MYSQL_PASSWORD }}
           LOGIN: ${{ secrets.MOYSKLAD_LOGIN }}
           PASS: ${{ secrets.MOYSKLAD_PASSWORD }}
         run: |
           set -euo pipefail
           SSH=(ssh -T -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3)
+          if [ -z "${MU:-}" ]; then MU="${MU_ALT:-}"; fi
+          if [ -z "${MP:-}" ]; then MP="${MP_ALT:-}"; fi
+          export MU MP
           tar czf - server src/moysklad package.json package-lock.json tsconfig.json | "${SSH[@]}" "$USER@$HOST" "install -d /opt/flowers-catalog && tar xzf - -C /opt/flowers-catalog"
           scp -o StrictHostKeyChecking=yes -o BatchMode=yes deploy/systemd/flowers-catalog.service "$USER@$HOST:/tmp/flowers-catalog.service"
           "${SSH[@]}" "$USER@$HOST" 'export DEBIAN_FRONTEND=noninteractive; if command -v node >/dev/null 2>&1; then true; elif [ "$(id -u)" -eq 0 ]; then curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs; else sudo bash -c "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -" && sudo apt-get install -y nodejs; fi'
@@ -161,10 +166,18 @@ jobs:
             scp -o StrictHostKeyChecking=yes -o BatchMode=yes /tmp/catalog.env "$USER@$HOST:/tmp/catalog.env"
             rm -f /tmp/catalog.env
             "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then install -d /etc/flowers && mv /tmp/catalog.env /etc/flowers/catalog.env && chmod 600 /etc/flowers/catalog.env; else sudo install -d /etc/flowers && sudo mv /tmp/catalog.env /etc/flowers/catalog.env && sudo chmod 600 /etc/flowers/catalog.env; fi'
+          elif "${SSH[@]}" "$USER@$HOST" "test -f /etc/flowers/mysql-dotenv.txt"; then
+            echo "::notice::Берём MYSQL_USER/MYSQL_PASSWORD из /etc/flowers/mysql-dotenv.txt на сервере"
+            "${SSH[@]}" "$USER@$HOST" "cat /etc/flowers/mysql-dotenv.txt" > /tmp/mysql-dotenv.txt
+            python3 deploy/write-catalog-env.py --from-file /tmp/mysql-dotenv.txt
+            rm -f /tmp/mysql-dotenv.txt
+            scp -o StrictHostKeyChecking=yes -o BatchMode=yes /tmp/catalog.env "$USER@$HOST:/tmp/catalog.env"
+            rm -f /tmp/catalog.env
+            "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then install -d /etc/flowers && mv /tmp/catalog.env /etc/flowers/catalog.env && chmod 600 /etc/flowers/catalog.env; else sudo install -d /etc/flowers && sudo mv /tmp/catalog.env /etc/flowers/catalog.env && sudo chmod 600 /etc/flowers/catalog.env; fi'
           elif "${SSH[@]}" "$USER@$HOST" "test -f /etc/flowers/catalog.env"; then
             echo "::notice::Используется существующий /etc/flowers/catalog.env на сервере"
           else
-            echo "::error::Задайте GitHub Secrets CATALOG_MYSQL_USER и CATALOG_MYSQL_PASSWORD (MariaDB для БД boombuket) или создайте вручную /etc/flowers/catalog.env на VPS"
+            echo "::error::Нет учётных данных MariaDB: задайте Secrets CATALOG_MYSQL_* или MYSQL_USER/MYSQL_PASSWORD, либо создайте на VPS /etc/flowers/mysql-dotenv.txt (как после vps-mysql-phpmyadmin.sh) или /etc/flowers/catalog.env"
             exit 1
           fi
           "${SSH[@]}" "$USER@$HOST" 'if [ "$(id -u)" -eq 0 ]; then cp /tmp/flowers-catalog.service /etc/systemd/system/flowers-catalog.service; else sudo cp /tmp/flowers-catalog.service /etc/systemd/system/flowers-catalog.service; fi'
