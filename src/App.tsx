@@ -63,6 +63,17 @@ function onHeroCarouselImageError(e: SyntheticEvent<HTMLImageElement>) {
   }
 }
 
+function sanitizeCatalogImageSrc(
+  src: string | null | undefined
+): string {
+  const s = (src ?? '').trim();
+  if (!s) return PRODUCT_IMAGE_PLACEHOLDER;
+  if (s === PRODUCT_IMAGE_PLACEHOLDER) return PRODUCT_IMAGE_PLACEHOLDER;
+  // Требование: не грузить URL’ы “из моего склада”, а только публичные /uploads.
+  if (s.startsWith('/uploads/')) return s;
+  return PRODUCT_IMAGE_PLACEHOLDER;
+}
+
 /** Стабильный id для якоря секции категории (совпадает с чипом и футером). */
 function catalogCategorySectionId(name: string): string {
   let h = 2166136261;
@@ -220,7 +231,7 @@ export default function App() {
         );
         return {
           name: c.name,
-          image: product?.image ?? PRODUCT_IMAGE_PLACEHOLDER,
+          image: sanitizeCatalogImageSrc(product?.image),
         };
       });
   }, [categories, products]);
@@ -229,8 +240,12 @@ export default function App() {
     const out: HeroSlide[] = [];
     const seen = new Set<string>();
     for (const p of products) {
-      const src = p.image?.trim();
-      if (!src || seen.has(src)) continue;
+      const rawSrc = p.image?.trim();
+      if (!rawSrc) continue;
+      const src = sanitizeCatalogImageSrc(rawSrc);
+      // Главный баннер не показываем заглушку, если есть реальные /uploads.
+      if (src === PRODUCT_IMAGE_PLACEHOLDER) continue;
+      if (seen.has(src)) continue;
       seen.add(src);
       out.push({
         src,
@@ -851,7 +866,7 @@ export default function App() {
                     {cart.map((item) => (
                       <div key={item.id} className="flex gap-3 bg-[var(--lilar-bg)] rounded-xl p-3 border border-[var(--lilar-border)]">
                         <img
-                          src={item.image || PRODUCT_IMAGE_PLACEHOLDER}
+                          src={sanitizeCatalogImageSrc(item.image)}
                           alt={item.name}
                           onError={onProductImageError}
                           className="w-[72px] h-[72px] min-h-[4.5rem] object-cover rounded-lg bg-white"

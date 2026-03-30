@@ -18,7 +18,21 @@ export default defineConfig(({ mode }) => {
       ? Buffer.from(`${login}:${password}`).toString("base64")
       : "";
   const catalogPort = env.CATALOG_SERVER_PORT || "8788";
-  const catalogTarget = `http://127.0.0.1:${catalogPort}`;
+  // В dev Vite по умолчанию проксирует каталог на локальный catalog-server (8788).
+  // Если MySQL на VPS локально недоступен, можно указать готовый URL (prod),
+  // чтобы фронт работал без SSH-туннеля.
+  const catalogProxyTarget =
+    env.CATALOG_PROXY_TARGET ||
+    env.VITE_CATALOG_PROXY_TARGET ||
+    "";
+  const localCatalogTarget = `http://127.0.0.1:${catalogPort}`;
+  const catalogTarget =
+    mode === "development"
+      ? localCatalogTarget
+      : catalogProxyTarget
+        ? String(catalogProxyTarget).replace(/\/$/, "")
+        : localCatalogTarget;
+  const catalogIsHttps = catalogTarget.startsWith("https://");
 
   return {
     base: "/",
@@ -30,13 +44,25 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        "/api/catalog": {
+        // В dev всегда читаем локальный catalog-server, чтобы синк в локальную БД
+        // сразу отражался в витрине. Продовый target остаётся только как fallback вне dev.
+        "/api/catalog/products": {
           target: catalogTarget,
+          changeOrigin: true,
+          secure: catalogIsHttps,
+        },
+        "/api/catalog/product-images": {
+          target: `http://127.0.0.1:${catalogPort}`,
+          changeOrigin: true,
+        },
+        "/api/catalog/sync": {
+          target: `http://127.0.0.1:${catalogPort}`,
           changeOrigin: true,
         },
         "/uploads": {
           target: catalogTarget,
           changeOrigin: true,
+          secure: catalogIsHttps,
         },
         ...(basic
           ? {

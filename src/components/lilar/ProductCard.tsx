@@ -1,5 +1,5 @@
 import { Heart, Plus } from "lucide-react";
-import { useEffect, useState, type SyntheticEvent } from "react";
+import type { SyntheticEvent } from "react";
 import type { CatalogProduct } from "@/moysklad/mapProduct";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "@/moysklad/placeholderImage";
 import { galleryUrls } from "./productGallery";
@@ -26,14 +26,7 @@ export function LilarProductCard({
   compact = false,
 }: Props) {
   const images = galleryUrls(product);
-  const [activeIdx, setActiveIdx] = useState(0);
-
-  useEffect(() => {
-    setActiveIdx(0);
-  }, [product.id]);
-
-  const mainSrc = images[activeIdx] ?? images[0];
-  const showThumbs = images.length > 1;
+  const mainSrc = images[0];
 
   const discount =
     product.oldPrice != null && product.oldPrice > product.price
@@ -84,35 +77,6 @@ export function LilarProductCard({
             />
           </button>
         </div>
-
-        {showThumbs && (
-          <div className="flex gap-1.5 overflow-x-auto p-2 pb-2.5">
-            {images.map((src, i) => (
-              <button
-                key={`${src}-${i}`}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveIdx(i);
-                }}
-                className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 bg-white transition ${
-                  i === activeIdx
-                    ? "border-[var(--lilar-primary)] ring-1 ring-[var(--lilar-primary)]"
-                    : "border-transparent opacity-80 hover:opacity-100"
-                }`}
-                aria-label={`Фото ${i + 1}`}
-              >
-                <img
-                  src={src}
-                  alt=""
-                  className="h-full w-full object-cover"
-                  onError={onImageError}
-                  decoding="async"
-                />
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="flex flex-col flex-1 p-3 sm:p-4">

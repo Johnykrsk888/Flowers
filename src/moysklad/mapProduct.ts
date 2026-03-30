@@ -132,6 +132,56 @@ export function pickRawMoyskladImageUrl(p: MsProduct): string | null {
   return null;
 }
 
+/**
+ * Все URL для скачивания картинок (сырой URL для бэкенда).
+ * Возвращаем уникальные значения в порядке, близком к карточке.
+ */
+export function pickRawMoyskladImageUrls(p: MsProduct): string[] {
+  const rows = p.images?.rows;
+  if (!rows?.length) return [];
+
+  const candidatesToRaw = (row: MsImageRow): string[] => {
+    const rawCandidates = [
+      row.downloadHref,
+      row.meta?.downloadHref,
+      row.medium?.downloadHref,
+      row.medium?.href,
+      row.miniature?.downloadHref,
+      row.miniature?.href,
+      row.tiny?.downloadHref,
+      row.tiny?.href,
+      row.meta?.href,
+    ].filter(Boolean) as string[];
+
+    if (rawCandidates.length) return rawCandidates;
+    return collectImageUrlsDeep(row);
+  };
+
+  const toAbsolute = (u: string): string => {
+    const n = normalizeMoyskladImageDownloadUrl(u.trim());
+    if (n.startsWith("http")) return n;
+    if (n.startsWith("/")) return `${MS_API_ORIGIN}${n}`;
+    return n;
+  };
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    for (const raw of candidatesToRaw(row)) {
+      if (!raw) continue;
+      const abs = toAbsolute(raw);
+      if (!abs) continue;
+      if (seen.has(abs)) continue;
+      seen.add(abs);
+      out.push(abs);
+      break; // на одну строку изображения берём первый подходящий raw
+    }
+  }
+
+  return out;
+}
+
 function mainPriceRub(p: MsProduct): number {
   const sp = p.salePrices?.filter((x) => x.value > 0);
   if (sp?.length) {

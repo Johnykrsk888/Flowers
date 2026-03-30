@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
 import { X, Heart, Minus, Plus, Phone, Check, Package } from 'lucide-react';
+import { catalogApiBase } from '@/catalog/fetchCatalog';
 import type { CatalogProduct } from '@/moysklad/mapProduct';
 import { fetchMoyskladProductGalleryImages } from '@/moysklad/fetchProductGallery';
 import { PRODUCT_IMAGE_PLACEHOLDER } from '@/moysklad/placeholderImage';
@@ -38,44 +39,59 @@ export function ProductDetailModal({
   const [qty, setQty] = useState(1);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [fetchedGallery, setFetchedGallery] = useState<string[] | null>(null);
-
-  const images = useMemo(() => {
-    if (!product) return [];
-    if (fetchedGallery && fetchedGallery.length > 1) return fetchedGallery;
-    return galleryUrls(product);
-  }, [product, fetchedGallery]);
+  const [images, setImages] = useState<string[]>([]);
 
   const mainSrc = images[activeImageIdx] ?? images[0];
-  const showThumbs = images.length > 1;
+  // Даже если картинка одна — показываем миниатюру (иначе пользователь думает,
+  // что галерея "не загрузилась").
+  const showThumbs = images.length > 0;
 
   useEffect(() => {
-    if (open && product) {
-      setQty(1);
-      setTab('desc');
-      setActiveImageIdx(0);
-      setLightboxOpen(false);
-    }
-  }, [open, product?.id]);
-
-  /** Догрузка полной галереи по API, если в списке пришло только одно фото при нескольких в МойСклад. */
-  useEffect(() => {
-    if (!open) {
-      setFetchedGallery(null);
+    if (!open || !product) {
+      setImages([]);
       return;
     }
-    if (!product) return;
-    setFetchedGallery(null);
-    if ((product.images?.length ?? 0) > 1) return;
+
+    const initialImages = galleryUrls(product);
+    setQty(1);
+    setTab('desc');
+    setActiveImageIdx(0);
+    setLightboxOpen(false);
+    setImages(initialImages);
+
     let cancelled = false;
-    fetchMoyskladProductGalleryImages(product.id)
-      .then((urls) => {
-        if (cancelled || !urls || urls.length <= 1) return;
-        setFetchedGallery(urls);
-      })
-      .catch(() => {
-        /* нет прокси МойСклад / сеть — остаётся галерея из product */
-      });
+    void (async () => {
+      try {
+        const base = catalogApiBase();
+        const res = await fetch(
+          `${base}/api/catalog/product-images?id=${encodeURIComponent(product.id)}`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { images?: unknown };
+        const nextImages = Array.isArray(data.images)
+          ? data.images
+              .map((x) => (typeof x === 'string' ? x.trim() : ''))
+              .filter(Boolean)
+          : [];
+        const merged = Array.from(new Set([...initialImages, ...nextImages]));
+        if (!cancelled && merged.length > 0) {
+          setImages(merged);
+        }
+
+        if (merged.length > 1) return;
+
+        const remoteImages = await fetchMoyskladProductGalleryImages(product.id);
+        if (cancelled || !remoteImages?.length) return;
+        const mergedRemote = Array.from(new Set([...merged, ...remoteImages]));
+        if (mergedRemote.length > merged.length) {
+          setImages(mergedRemote);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+
     return () => {
       cancelled = true;
     };

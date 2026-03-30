@@ -22,6 +22,7 @@ export interface DbProductRow {
   price: number;
   old_price: number | null;
   image_path: string;
+  images_json: unknown;
   sale_prices_json: unknown;
   code: string | null;
   article: string | null;
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS products (
   price DECIMAL(14, 4) NOT NULL DEFAULT 0,
   old_price DECIMAL(14, 4) NULL,
   image_path VARCHAR(1024) NOT NULL DEFAULT '',
+  images_json JSON NULL,
   sale_prices_json JSON NULL,
   code VARCHAR(128) NULL,
   article VARCHAR(128) NULL,
@@ -78,4 +80,12 @@ CREATE TABLE IF NOT EXISTS catalog_meta (
   k VARCHAR(64) NOT NULL PRIMARY KEY,
   v JSON NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  // Миграция: добавляем images_json, если базы уже существовали со старой схемой.
+  // (MySQL не поддерживает IF NOT EXISTS для ALTER ADD COLUMN.)
+  try {
+    await pool.execute(`ALTER TABLE products ADD COLUMN images_json JSON NULL`);
+  } catch {
+    /* уже добавлено */
+  }
 }

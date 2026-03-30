@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS products (
   price DECIMAL(14, 4) NOT NULL DEFAULT 0,
   old_price DECIMAL(14, 4) NULL,
   image_path VARCHAR(1024) NOT NULL DEFAULT '',
+  images_json JSON NULL,
   sale_prices_json JSON NULL,
   code VARCHAR(128) NULL,
   article VARCHAR(128) NULL,

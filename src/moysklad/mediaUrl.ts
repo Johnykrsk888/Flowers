@@ -29,13 +29,23 @@ function extractUuidFromMoyskladStorageUrl(url: string): string | null {
 /** Прод: бинарные /download и …/images/{id}/download — через img-proxy на VPS (Python стрим с IP сервера; иначе storage 401). */
 const PROD_IMG_STREAM_PREFIX = "/img-proxy";
 
+function isDevRuntime(): boolean {
+  if (typeof import.meta !== "undefined" && typeof import.meta.env?.DEV === "boolean") {
+    return import.meta.env.DEV;
+  }
+  if (typeof process !== "undefined") {
+    return process.env.NODE_ENV !== "production";
+  }
+  return false;
+}
+
 function needsImageStreamProxy(rest: string): boolean {
   if (rest.startsWith("/download/")) return true;
   return /\/images\/[^/]+\/download(?:\?|$)/i.test(rest);
 }
 
 function proxyRemapRest(rest: string, fallbackUrl: string): string {
-  if (import.meta.env?.DEV) {
+  if (isDevRuntime()) {
     return `/api/moysklad${rest}`;
   }
   const prefix = import.meta.env?.VITE_MOYSKLAD_API_PREFIX?.replace(/\/$/, "");
